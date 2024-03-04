@@ -2,6 +2,7 @@ package com.project.zalobackend.models;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
@@ -18,10 +19,12 @@ public class User {
     private String name;
     private boolean gender;
     private LocalDate dateOfBirth;
+    @Indexed
     private String phoneNumber;
     private String password;
     private String avatar;
     private List<String> friends;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
 }
