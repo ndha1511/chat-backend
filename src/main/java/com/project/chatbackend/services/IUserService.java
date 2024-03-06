@@ -1,0 +1,15 @@
+package com.project.chatbackend.services;
+
+import com.project.chatbackend.models.User;
+import com.project.chatbackend.requests.UseRegisterRequest;
+import com.project.chatbackend.requests.UserLoginRequest;
+import com.project.chatbackend.responses.LoginResponse;
+
+
+
+public interface IUserService {
+    User createUser(UseRegisterRequest useRegisterRequest) throws Exception;
+    LoginResponse login(UserLoginRequest userLoginRequest) throws Exception;
+
+    LoginResponse refreshToken(String refreshToken) throws Exception;
+}
