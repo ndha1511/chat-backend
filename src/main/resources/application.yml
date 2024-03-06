@@ -4,6 +4,6 @@ spring:
       uri: mongodb+srv://ndha:w3tu5mFXgFlYEB66@mycluster.m7h7a2u.mongodb.net/?retryWrites=true&w=majority&appName=myCluster
       database: chat-app
 jwt:
-  expiration: 1800
-  expiration-refresh-token: 1296000
+  expiration: 1800 # 30 minutes
+  expiration-refresh-token: 1296000 # 15 days
   secretKey: pfXd5yXy6mas0PjEB1H3WIX0QjJNh9UsOQMKUhLDaWQ=
