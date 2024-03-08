@@ -9,6 +9,7 @@ import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.requests.UseRegisterRequest;
 import com.project.chatbackend.requests.UserLoginRequest;
 import com.project.chatbackend.responses.LoginResponse;
+import com.project.chatbackend.responses.UserLoginResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -123,5 +124,23 @@ public class UserService implements IUserService {
         }
 
         throw new DataNotFoundException("token not found");
+    }
+
+    @Override
+    public UserLoginResponse findByPhoneNumber(String phoneNumber) throws Exception {
+        Optional<User> optionalUser = userRepository.findByPhoneNumber(phoneNumber);
+        if(optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            return UserLoginResponse.builder()
+                    .id(user.getId())
+                    .avatar(user.getAvatar())
+                    .name(user.getName())
+                    .phoneNumber(user.getPhoneNumber())
+                    .gender(user.isGender())
+                    .coverImage(user.getCoverImage())
+                    .images(user.getImages())
+                    .build();
+        }
+        throw new DataNotFoundException("user not found");
     }
 }

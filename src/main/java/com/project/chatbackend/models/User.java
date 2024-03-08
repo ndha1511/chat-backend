@@ -26,5 +26,9 @@ public class User {
     private List<String> friends;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean publicDob;
+    private boolean publicPhone;
+    private List<String> images;
+    private String coverImage;
 
 }
