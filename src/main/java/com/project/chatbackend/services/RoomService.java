@@ -6,6 +6,7 @@ import com.project.chatbackend.repositories.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -29,6 +30,11 @@ public class RoomService implements IRoomService{
                 .roomType(RoomType.GROUP_CHAT)
                 .build();
         roomRepository.save(room);
+    }
+
+    @Override
+    public List<Room> findAllBySenderId(String senderId) {
+        return roomRepository.findAllBySenderId(senderId);
     }
 
     private String createRoomId(String senderId, String receiverId) {

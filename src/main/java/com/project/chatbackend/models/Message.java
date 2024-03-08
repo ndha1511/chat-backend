@@ -26,4 +26,5 @@ public class Message {
     private List<Emoji> emojis;
     private int numberOfEmojis;
     private List<String> messagesReplyId;
+    private MessageStatus messageStatus;
 }

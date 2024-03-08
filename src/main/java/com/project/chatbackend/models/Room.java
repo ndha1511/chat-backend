@@ -17,4 +17,8 @@ public class Room {
     private String senderId;
     private String receiverId;
     private RoomType roomType;
+    private String latestMessage;
+    private MessageStatus messageStatus;
+    private int numberOfUnreadMessage;
+    private String avatarReceiver;
 }
