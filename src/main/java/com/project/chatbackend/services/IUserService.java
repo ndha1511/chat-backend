@@ -14,4 +14,6 @@ public interface IUserService {
     LoginResponse refreshToken(String refreshToken) throws Exception;
 
     UserLoginResponse findByPhoneNumber(String phoneNumber) throws Exception;
+
+    UserLoginResponse findById(String id) throws Exception;
 }

@@ -57,7 +57,7 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        Optional<Token> optionalToken = tokenRepository.findByToken(token);
+        Optional<Token> optionalToken = tokenRepository.findByAccessToken(token);
         if(optionalToken.isEmpty()) {
             return false;
         } else {

@@ -22,4 +22,14 @@ public class UserController {
         }
     }
 
+    @GetMapping("/id/{id}")
+    public ResponseEntity<?> findById(@PathVariable String id) {
+        try {
+            UserLoginResponse userLoginResponse = userService.findById(id);
+            return ResponseEntity.ok(userLoginResponse);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 }

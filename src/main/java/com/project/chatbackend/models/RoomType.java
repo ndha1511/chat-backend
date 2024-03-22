@@ -1,6 +1,6 @@
 package com.project.chatbackend.models;
 
 public enum RoomType {
-    USER_CHAT,
+    SINGLE_CHAT,
     GROUP_CHAT
 }

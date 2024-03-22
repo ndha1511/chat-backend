@@ -9,4 +9,7 @@ public interface IRoomService {
     Optional<String> getRoomId(String senderId, String receiverId);
     void createRoomForGroup(String userId, String groupId);
     List<Room> findAllBySenderId(String senderId);
+    Room findBySenderIdAndReceiverId(String senderId, String receiverId) throws Exception;
+    List<Room> findByRoomId(String roomId);
+
 }
