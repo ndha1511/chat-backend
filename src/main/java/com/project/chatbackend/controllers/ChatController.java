@@ -21,7 +21,7 @@ public class ChatController {
             Message msg = messageService.saveMessage(message);
             simpMessagingTemplate.convertAndSendToUser(
                 message.getReceiverId(), "/queue/messages",
-                    msg
+                    msg.getId()
             );
         } catch (DataNotFoundException e) {
             throw new RuntimeException(e);

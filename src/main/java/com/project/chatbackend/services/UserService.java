@@ -71,13 +71,13 @@ public class UserService implements IUserService {
             var jwt = jwtService.generateToken(userDetailConfig);
             var refreshToken = jwtService.generateRefreshToken(new HashMap<>(), userDetailConfig);
             Token token = Token.builder()
-                    .token(jwt)
-                    .userId(user.getId())
+                    .accessToken(jwt)
+                    .user(user)
                     .refreshToken(refreshToken)
                     .tokenType("Bearer")
                     .revoked(false)
                     .isMobile(userLoginRequest.isMobile())
-                    .expirationDate(LocalDateTime.now().plusSeconds(expiration))
+                    .expirationDateAccessToken(LocalDateTime.now().plusSeconds(expiration))
                     .expirationDateRefreshToken(LocalDateTime.now().plusSeconds(expirationRefreshToken))
                     .build();
 
@@ -85,7 +85,7 @@ public class UserService implements IUserService {
             if(tokens.size() >= MAX_DEVICE_LOGIN) {
                Token tokenDelete = tokens.stream()
                        .filter(t -> !t.isMobile())
-                       .min(Comparator.comparing(Token::getExpirationDate))
+                       .min(Comparator.comparing(Token::getExpirationDateAccessToken))
                        .orElseThrow();
                tokenRepository.deleteById(tokenDelete.getId());
                tokenRepository.save(token);
@@ -93,7 +93,7 @@ public class UserService implements IUserService {
 
             tokenRepository.save(token);
             return LoginResponse.builder()
-                    .token(jwt)
+                    .accessToken(jwt)
                     .refreshToken(refreshToken)
                     .build();
         }
@@ -114,11 +114,11 @@ public class UserService implements IUserService {
                     .orElseThrow(() -> new UsernameNotFoundException("not found"));
             UserDetailConfig userDetailConfig = new UserDetailConfig(user);
             String newToken = jwtService.generateToken(userDetailConfig);
-            token.setToken(newToken);
-            token.setExpirationDate(LocalDateTime.now().plusSeconds(expiration));
+            token.setAccessToken(newToken);
+            token.setExpirationDateAccessToken(LocalDateTime.now().plusSeconds(expiration));
             tokenRepository.save(token);
             return LoginResponse.builder()
-                    .token(newToken)
+                    .accessToken(newToken)
                     .refreshToken(refreshToken)
                     .build();
         }
@@ -142,5 +142,21 @@ public class UserService implements IUserService {
                     .build();
         }
         throw new DataNotFoundException("user not found");
+    }
+
+    @Override
+    public UserLoginResponse findById(String id) throws Exception {
+        return userRepository.findById(id)
+                .map(user -> UserLoginResponse
+                        .builder()
+                        .id(user.getId())
+                        .avatar(user.getAvatar())
+                        .name(user.getName())
+                        .phoneNumber(user.getPhoneNumber())
+                        .gender(user.isGender())
+                        .coverImage(user.getCoverImage())
+                        .images(user.getImages())
+                        .build())
+                .orElseThrow(() -> new DataNotFoundException("user not found"));
     }
 }
