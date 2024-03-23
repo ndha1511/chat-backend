@@ -8,4 +8,5 @@ import org.springframework.data.domain.PageRequest;
 public interface IMessageService {
     Message saveMessage(Message message) throws DataNotFoundException;
     Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest);
+    void updateStatusMessage(String id, Message message);
 }

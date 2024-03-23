@@ -2,6 +2,7 @@ package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
+import com.project.chatbackend.models.MessageStatus;
 import com.project.chatbackend.models.Room;
 import com.project.chatbackend.repositories.MessageRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class MessageService implements IMessageService {
                 room.setLatestMessage(message.getContent().toString());
                 room.setTime(LocalDateTime.now());
                 room.setSender(true);
+                room.setNumberOfUnreadMessage(0);
                 roomService.saveRoom(room);
             } else {
                 room.setLatestMessage(message.getContent().toString());
@@ -45,5 +47,12 @@ public class MessageService implements IMessageService {
     @Override
     public Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest) {
         return messageRepository.getAllByRoomId(roomId, pageRequest);
+    }
+
+    @Override
+    public void updateStatusMessage(String id, Message message) {
+        Message newMsg = messageRepository.findById(id).orElseThrow();
+        newMsg.setMessageStatus(message.getMessageStatus());
+        messageRepository.save(newMsg);
     }
 }
