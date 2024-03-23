@@ -26,12 +26,8 @@ public class Room {
     private RoomType roomType;
     @Field(name = "latest_message")
     private String latestMessage;
-    @Field(name = "message_status")
-    private MessageStatus messageStatus;
     @Field(name = "number_of_unread_message")
     private int numberOfUnreadMessage;
-    @Field(name = "avatar_receiver")
-    private String avatarReceiver;
     private LocalDateTime time;
     private boolean sender;
 }
