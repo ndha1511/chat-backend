@@ -3,6 +3,19 @@ spring:
     mongodb:
       uri: mongodb+srv://ndha:w3tu5mFXgFlYEB66@mycluster.m7h7a2u.mongodb.net/?retryWrites=true&w=majority&appName=myCluster
       database: chat-app
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: javaspring0406@gmail.com
+    password: jtnv nsrf hkos jwas
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
 jwt:
   expiration: 1800 # 30 minutes
   expiration-refresh-token: 1296000 # 15 days

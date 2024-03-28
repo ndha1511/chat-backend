@@ -24,6 +24,9 @@ public class User {
     @Indexed
     @Field(name = "phone_number")
     private String phoneNumber;
+    @Indexed
+    @Field(name = "email")
+    private String email;
     private String password;
     private String avatar;
     private List<String> friends;
