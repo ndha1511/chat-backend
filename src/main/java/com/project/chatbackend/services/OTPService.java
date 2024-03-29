@@ -2,12 +2,12 @@ package com.project.chatbackend.services;
 
 import com.project.chatbackend.models.Otp;
 import com.project.chatbackend.repositories.OTPRepository;
+import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.requests.OtpRequest;
 import com.project.chatbackend.requests.OtpValidRequest;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -23,25 +23,26 @@ import java.util.Random;
 @Service
 @RequiredArgsConstructor
 public class OTPService implements IOtpService {
-    @Autowired
+
     private final JavaMailSender javaMailSender;
-    @Autowired
     private final  OTPRepository otpRepository;
+    private final UserRepository userRepository;
     @Override
     public boolean sendOTP(OtpRequest otpRequest) {
-        String otpToken = generateOTP();
         try{
+            if(userRepository.existsByEmail(otpRequest.getEmail()))
+                throw new Exception("email is exists");
+            String otpToken = generateOTP();
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             long updateAt = timestamp.getTime();
             Otp otp = Otp.builder().otp(otpToken).email(otpRequest.getEmail()).createdAt(updateAt).build();
             saveOTP(otp);
-            String htmlContent = loadHtmlTemplate("templates/OTP.html");
+            String htmlContent = loadHtmlTemplate();
             htmlContent = htmlContent.replace("codeOtp", otpToken);
             htmlContent = htmlContent.replace("userName", otpRequest.getEmail());
             sendHtmlEmail(otpRequest.getEmail(), otpRequest.getSubject(), htmlContent);
             return true;
         }catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException("Error while sending Otp");
         }
     }
@@ -106,23 +107,19 @@ public class OTPService implements IOtpService {
         return sb.toString();
     }
 
-    private String loadHtmlTemplate(String templateName) throws IOException {
-        try(InputStream inputStream = new ClassPathResource(templateName).getInputStream()) {
+    private String loadHtmlTemplate() throws IOException {
+        try(InputStream inputStream = new ClassPathResource("templates/OTP.html").getInputStream()) {
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
     private void sendHtmlEmail(String to, String subject, String htmlBody) throws MessagingException {
-        try{
-            MimeMessage message = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-            javaMailSender.send(message);
-        } catch (Exception e) {
-            throw e;
-        }
+        MimeMessage message = javaMailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlBody, true);
+        javaMailSender.send(message);
     }
 
 
