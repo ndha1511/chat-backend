@@ -14,4 +14,5 @@ public class UseRegisterRequest {
     private LocalDate dateOfBirth;
     private String password;
     private String avatar;
+    private String email;
 }
