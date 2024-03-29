@@ -5,9 +5,14 @@ import com.project.chatbackend.responses.LoginResponse;
 import com.project.chatbackend.services.IOtpService;
 import com.project.chatbackend.services.IUserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -59,8 +64,16 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> createUser(@RequestBody UseRegisterRequest useRegisterRequest) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody UseRegisterRequest useRegisterRequest,
+                                        BindingResult result) {
         try {
+            if (result.hasErrors()) {
+                List<String> errMessages = result.getFieldErrors()
+                        .stream()
+                        .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                        .toList();
+                return ResponseEntity.badRequest().body(errMessages);
+            }
             userService.createUser(useRegisterRequest);
             return ResponseEntity.ok("create user successfully");
         } catch (Exception e) {

@@ -44,7 +44,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(author -> {
                     author.requestMatchers(
                             "/api/v1/auth/**",
-                            "ws/**"
+                            "ws/**",
+                            "/api/v1/uploads/**"
                     ).permitAll();
                     author.anyRequest().authenticated();
                 })

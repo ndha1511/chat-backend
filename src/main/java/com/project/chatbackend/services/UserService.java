@@ -28,7 +28,8 @@ import java.util.concurrent.TimeoutException;
 @Service
 @RequiredArgsConstructor
 public class UserService implements IUserService {
-    private static final int MAX_DEVICE_LOGIN = 3;
+    @Value("${login.max-device}")
+    private static int MAX_DEVICE_LOGIN;
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;
     private final AuthenticationManager authenticationManager;
@@ -83,8 +84,9 @@ public class UserService implements IUserService {
 
             List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
             if(tokens.size() >= MAX_DEVICE_LOGIN) {
+               boolean mobile = userLoginRequest.isMobile();
                Token tokenDelete = tokens.stream()
-                       .filter(t -> !t.isMobile())
+                       .filter(t -> t.isMobile() == mobile)
                        .min(Comparator.comparing(Token::getExpirationDateAccessToken))
                        .orElseThrow();
                tokenRepository.deleteById(tokenDelete.getId());
