@@ -59,7 +59,7 @@ public class UserService implements IUserService {
 
     @Override
     public LoginResponse login(UserLoginRequest userLoginRequest) throws Exception{
-        final String email = userLoginRequest.getPhoneNumber();
+        final String email = userLoginRequest.getEmail();
         final String password = userLoginRequest.getPassword();
         Optional<User> optionalUser = userRepository.findByEmail(email);
         if(optionalUser.isEmpty()) {
