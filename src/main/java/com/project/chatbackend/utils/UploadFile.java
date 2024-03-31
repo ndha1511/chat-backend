@@ -38,7 +38,6 @@ public class UploadFile {
         }
         Path destination = Paths.get(uploadDir.toString(), uniqueFilename);
         Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
-        System.out.println(uniqueFilename);
         return uniqueFilename;
     }
 }
