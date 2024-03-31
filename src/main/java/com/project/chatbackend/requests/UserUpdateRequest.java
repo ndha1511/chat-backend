@@ -13,9 +13,8 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor
 public class UserUpdateRequest {
-    private boolean gender;
-    private LocalDate dateOfBirth;
-    private String phoneNumber;
+    private String name;
+    private String mail;
     private String password;
     private String avatar;
 }

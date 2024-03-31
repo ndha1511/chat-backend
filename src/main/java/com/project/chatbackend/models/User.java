@@ -41,7 +41,7 @@ public class User {
     private List<String> images;
     @Field(name = "cover_image")
     private String coverImage;
-    @Field(name = "status")
+    @Field(name = "verify")
     private boolean isVerified;
 
 

@@ -6,7 +6,6 @@ import com.project.chatbackend.models.Token;
 import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.TokenRepository;
 import com.project.chatbackend.repositories.UserRepository;
-import com.project.chatbackend.requests.CreateTempUserRequest;
 import com.project.chatbackend.requests.UseRegisterRequest;
 import com.project.chatbackend.requests.UserLoginRequest;
 import com.project.chatbackend.responses.LoginResponse;
@@ -143,6 +142,8 @@ public class UserService implements IUserService {
         return convertUserResponse(optionalUser);
     }
 
+
+
     private UserLoginResponse convertUserResponse(Optional<User> optionalUser) throws DataNotFoundException {
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
@@ -176,19 +177,22 @@ public class UserService implements IUserService {
                 .orElseThrow(() -> new DataNotFoundException("user not found"));
     }
 
+
+
+
     @Override
-    public User createTempUser(CreateTempUserRequest createTempUserRequest) throws Exception {
-        User user = User.builder()
-                .name(createTempUserRequest.getName())
-                .email(createTempUserRequest.getEmail())
-                .build();
-        return userRepository.save(user);
+    public User findUserByEmail(String email) throws DataNotFoundException {
+        return userRepository.findByEmail(email).orElseThrow(()->new DataNotFoundException("user not found"));
     }
 
-
-
     @Override
-    public boolean updateVerificationStatus(String id, boolean status) throws Exception {
-        return false;
+    public boolean deleteUserByEmail(String email) {
+        try{
+            User user = userRepository.findByEmail(email).orElseThrow();
+            userRepository.deleteById(user.getId());
+            return true;
+        }catch (Exception e){
+            return false;
+        }
     }
 }

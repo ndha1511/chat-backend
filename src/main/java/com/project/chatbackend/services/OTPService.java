@@ -1,10 +1,11 @@
 package com.project.chatbackend.services;
 
+import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Otp;
+import com.project.chatbackend.models.TempUser;
 import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.OTPRepository;
 import com.project.chatbackend.repositories.UserRepository;
-import com.project.chatbackend.requests.CreateTempUserRequest;
 import com.project.chatbackend.requests.OtpRequest;
 import com.project.chatbackend.requests.OtpValidRequest;
 import com.project.chatbackend.requests.UseRegisterRequest;
@@ -31,14 +32,29 @@ public class OTPService implements IOtpService {
     private final  OTPRepository otpRepository;
     private final UserRepository userRepository;
     private final UserService userService;
+    private final TempUserService tempUserService;
     @Override
     public boolean sendOTP(OtpRequest otpRequest) {
         try{
-            if(userRepository.existsByEmail(otpRequest.getEmail()))
+            if(userRepository.existsByEmail(otpRequest.getEmail())){
                 throw new Exception("email is exists");
-            CreateTempUserRequest createTempUserRequest = CreateTempUserRequest.builder().email(otpRequest.getEmail()).build();
-            if(userService.createTempUser(createTempUserRequest) == null)
-                throw new Exception("Error while creating temp user");
+            }else{
+                TempUser tempUser = tempUserService.findByEmail(otpRequest.getEmail());
+                UseRegisterRequest useRegisterRequest = UseRegisterRequest.builder()
+                        .password(otpRequest.getPassword())
+                        .email(otpRequest.getEmail())
+                        .name(otpRequest.getName())
+                        .dateOfBirth(otpRequest.getDateOfBirth())
+                        .gender(otpRequest.isGender())
+                        .avatar(otpRequest.getAvatar())
+                        .phoneNumber(otpRequest.getPhoneNumber())
+                        .build();
+                if(tempUser == null){
+                    tempUserService.createUser(useRegisterRequest);
+                }else{
+                   tempUserService.updateByEmail(otpRequest.getEmail(), useRegisterRequest);
+                }
+            }
             String otpToken = generateOTP();
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             long updateAt = timestamp.getTime();
@@ -47,10 +63,10 @@ public class OTPService implements IOtpService {
             String htmlContent = loadHtmlTemplate();
             htmlContent = htmlContent.replace("codeOtp", otpToken);
             htmlContent = htmlContent.replace("userName", otpRequest.getEmail());
-            sendHtmlEmail(otpRequest.getEmail(), otpRequest.getSubject(), htmlContent);
+            sendHtmlEmail(otpRequest.getEmail(), "OTP for register", htmlContent);
             return true;
         }catch (Exception e) {
-            throw new RuntimeException("Error while sending Otp");
+            throw new RuntimeException("Error while sending OTP:"+e.getMessage());
         }
     }
 
@@ -60,7 +76,6 @@ public class OTPService implements IOtpService {
             Otp otp = getOTP(otpValidRequest.getEmail(), otpValidRequest.getOtp());
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             long diffSeconds = (timestamp.getTime() - otp.getCreatedAt()) / 1000;
-            User user = userService.findUserByEmail(otpValidRequest.getEmail());
             removeOTP(otpValidRequest.getEmail());
             if (diffSeconds > 180) {
                 return "expired";
@@ -70,12 +85,25 @@ public class OTPService implements IOtpService {
                 return "not exist";
             }
             if(otpToken.equals(otpValidRequest.getOtp())){
+                TempUser tempUser = tempUserService.findByEmail(otpValidRequest.getEmail());
+                UseRegisterRequest useRegisterRequest = UseRegisterRequest.builder()
+                        .password(tempUser.getPassword())
+                        .email(tempUser.getEmail())
+                        .name(tempUser.getName())
+                        .dateOfBirth(tempUser.getDateOfBirth())
+                        .gender(tempUser.isGender())
+                        .avatar(tempUser.getAvatar())
+                        .phoneNumber(tempUser.getPhoneNumber())
+                        .build();
+                userService.createUser(useRegisterRequest);
                 return "valid";
             }else{
                 return "invalid";
             }
         }catch (RuntimeException e) {
            return "invalid";
+        }catch (Exception e) {
+            return "cannot find user";
         }
     }
 
