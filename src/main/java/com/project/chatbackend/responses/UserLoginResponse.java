@@ -14,5 +14,6 @@ public class UserLoginResponse {
     private String avatar;
     private String phoneNumber;
     private String coverImage;
+    private String email;
     private List<String> images;
 }

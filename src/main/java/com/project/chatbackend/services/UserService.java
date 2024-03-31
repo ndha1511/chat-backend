@@ -30,7 +30,7 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class UserService implements IUserService {
     @Value("${login.max-device}")
-    private static int MAX_DEVICE_LOGIN;
+    private int MAX_DEVICE_LOGIN;
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;
     private final AuthenticationManager authenticationManager;
@@ -54,20 +54,21 @@ public class UserService implements IUserService {
                 .createdAt(LocalDateTime.now())
                 .isVerified(true)
                 .password(encoder.encode(useRegisterRequest.getPassword()))
+                .email(useRegisterRequest.getEmail())
                 .build();
         return userRepository.save(user);
     }
 
     @Override
     public LoginResponse login(UserLoginRequest userLoginRequest) throws Exception{
-        final String phoneNumber = userLoginRequest.getPhoneNumber();
+        final String email = userLoginRequest.getEmail();
         final String password = userLoginRequest.getPassword();
-        Optional<User> optionalUser = userRepository.findByPhoneNumber(phoneNumber);
+        Optional<User> optionalUser = userRepository.findByEmail(email);
         if(optionalUser.isEmpty()) {
-            throw new DataNotFoundException("phone number not exist");
+            throw new DataNotFoundException("email is not exists");
         } else {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(phoneNumber, password)
+                    new UsernamePasswordAuthenticationToken(email, password)
             );
             User user = optionalUser.get();
             UserDetailConfig userDetailConfig = new UserDetailConfig(user);
@@ -133,6 +134,16 @@ public class UserService implements IUserService {
     @Override
     public UserLoginResponse findByPhoneNumber(String phoneNumber) throws Exception {
         Optional<User> optionalUser = userRepository.findByPhoneNumber(phoneNumber);
+        return convertUserResponse(optionalUser);
+    }
+
+    @Override
+    public UserLoginResponse findByEmail(String email) throws Exception {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        return convertUserResponse(optionalUser);
+    }
+
+    private UserLoginResponse convertUserResponse(Optional<User> optionalUser) throws DataNotFoundException {
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
             return UserLoginResponse.builder()
@@ -143,6 +154,7 @@ public class UserService implements IUserService {
                     .gender(user.isGender())
                     .coverImage(user.getCoverImage())
                     .images(user.getImages())
+                    .email(user.getEmail())
                     .build();
         }
         throw new DataNotFoundException("user not found");
