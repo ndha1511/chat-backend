@@ -15,5 +15,7 @@ public interface IUserService {
 
     UserLoginResponse findByPhoneNumber(String phoneNumber) throws Exception;
 
+    UserLoginResponse findByEmail(String email) throws Exception;
+
     UserLoginResponse findById(String id) throws Exception;
 }

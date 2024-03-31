@@ -15,11 +15,11 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserDetailConfig implements UserDetails {
-    private String phoneNumber;
+    private String email;
     private String password;
     private List<GrantedAuthority> authorities;
     public UserDetailConfig(User user) {
-        this.phoneNumber = user.getPhoneNumber();
+        this.email = user.getEmail();
         this.password = user.getPassword();
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
@@ -35,7 +35,7 @@ public class UserDetailConfig implements UserDetails {
 
     @Override
     public String getUsername() {
-        return phoneNumber;
+        return email;
     }
 
     @Override
