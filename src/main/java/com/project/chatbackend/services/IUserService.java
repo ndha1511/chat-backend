@@ -1,5 +1,6 @@
 package com.project.chatbackend.services;
 
+import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.User;
 import com.project.chatbackend.requests.UseRegisterRequest;
 import com.project.chatbackend.requests.UserLoginRequest;
@@ -17,5 +18,12 @@ public interface IUserService {
 
     UserLoginResponse findByEmail(String email) throws Exception;
 
+
+
     UserLoginResponse findById(String id) throws Exception;
+
+
+    User findUserByEmail(String email) throws DataNotFoundException;
+
+    boolean deleteUserByEmail(String email);
 }

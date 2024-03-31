@@ -21,7 +21,6 @@ public class UseRegisterRequest {
     private String password;
     private String avatar;
     @NotBlank(message = "email is required")
-    @Pattern(regexp = "[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$",
-    message = "email is invalid")
+    @Pattern(regexp = "[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$", message = "email is invalid")
     private String email;
 }

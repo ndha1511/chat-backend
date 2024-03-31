@@ -51,6 +51,7 @@ public class UserService implements IUserService {
                 .dateOfBirth(useRegisterRequest.getDateOfBirth())
                 .avatar(useRegisterRequest.getAvatar())
                 .createdAt(LocalDateTime.now())
+                .isVerified(true)
                 .password(encoder.encode(useRegisterRequest.getPassword()))
                 .email(useRegisterRequest.getEmail())
                 .build();
@@ -141,6 +142,8 @@ public class UserService implements IUserService {
         return convertUserResponse(optionalUser);
     }
 
+
+
     private UserLoginResponse convertUserResponse(Optional<User> optionalUser) throws DataNotFoundException {
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
@@ -172,5 +175,24 @@ public class UserService implements IUserService {
                         .images(user.getImages())
                         .build())
                 .orElseThrow(() -> new DataNotFoundException("user not found"));
+    }
+
+
+
+
+    @Override
+    public User findUserByEmail(String email) throws DataNotFoundException {
+        return userRepository.findByEmail(email).orElseThrow(()->new DataNotFoundException("user not found"));
+    }
+
+    @Override
+    public boolean deleteUserByEmail(String email) {
+        try{
+            User user = userRepository.findByEmail(email).orElseThrow();
+            userRepository.deleteById(user.getId());
+            return true;
+        }catch (Exception e){
+            return false;
+        }
     }
 }
