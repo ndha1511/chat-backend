@@ -6,6 +6,7 @@ import com.project.chatbackend.models.Token;
 import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.TokenRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.CreateTempUserRequest;
 import com.project.chatbackend.requests.UseRegisterRequest;
 import com.project.chatbackend.requests.UserLoginRequest;
 import com.project.chatbackend.responses.LoginResponse;
@@ -51,6 +52,7 @@ public class UserService implements IUserService {
                 .dateOfBirth(useRegisterRequest.getDateOfBirth())
                 .avatar(useRegisterRequest.getAvatar())
                 .createdAt(LocalDateTime.now())
+                .isVerified(true)
                 .password(encoder.encode(useRegisterRequest.getPassword()))
                 .build();
         return userRepository.save(user);
@@ -160,5 +162,21 @@ public class UserService implements IUserService {
                         .images(user.getImages())
                         .build())
                 .orElseThrow(() -> new DataNotFoundException("user not found"));
+    }
+
+    @Override
+    public User createTempUser(CreateTempUserRequest createTempUserRequest) throws Exception {
+        User user = User.builder()
+                .name(createTempUserRequest.getName())
+                .email(createTempUserRequest.getEmail())
+                .build();
+        return userRepository.save(user);
+    }
+
+
+
+    @Override
+    public boolean updateVerificationStatus(String id, boolean status) throws Exception {
+        return false;
     }
 }

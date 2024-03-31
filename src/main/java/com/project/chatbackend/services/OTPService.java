@@ -1,10 +1,13 @@
 package com.project.chatbackend.services;
 
 import com.project.chatbackend.models.Otp;
+import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.OTPRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.CreateTempUserRequest;
 import com.project.chatbackend.requests.OtpRequest;
 import com.project.chatbackend.requests.OtpValidRequest;
+import com.project.chatbackend.requests.UseRegisterRequest;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +30,15 @@ public class OTPService implements IOtpService {
     private final JavaMailSender javaMailSender;
     private final  OTPRepository otpRepository;
     private final UserRepository userRepository;
+    private final UserService userService;
     @Override
     public boolean sendOTP(OtpRequest otpRequest) {
         try{
             if(userRepository.existsByEmail(otpRequest.getEmail()))
                 throw new Exception("email is exists");
+            CreateTempUserRequest createTempUserRequest = CreateTempUserRequest.builder().email(otpRequest.getEmail()).build();
+            if(userService.createTempUser(createTempUserRequest) == null)
+                throw new Exception("Error while creating temp user");
             String otpToken = generateOTP();
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             long updateAt = timestamp.getTime();
@@ -53,6 +60,7 @@ public class OTPService implements IOtpService {
             Otp otp = getOTP(otpValidRequest.getEmail(), otpValidRequest.getOtp());
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             long diffSeconds = (timestamp.getTime() - otp.getCreatedAt()) / 1000;
+            User user = userService.findUserByEmail(otpValidRequest.getEmail());
             removeOTP(otpValidRequest.getEmail());
             if (diffSeconds > 180) {
                 return "expired";
