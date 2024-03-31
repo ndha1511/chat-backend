@@ -41,11 +41,11 @@ public class UserService implements IUserService {
     private long expirationRefreshToken;
     @Override
     public User createUser(UseRegisterRequest useRegisterRequest) throws Exception{
-        String phoneNumber = useRegisterRequest.getPhoneNumber();
-        if(userRepository.existsByPhoneNumber(phoneNumber))
-            throw new Exception("phone number already exist");
+        String email = useRegisterRequest.getEmail();
+        if(userRepository.existsByEmail(email))
+            throw new Exception("email already exist");
         User user = User.builder()
-                .phoneNumber(phoneNumber)
+                .phoneNumber(useRegisterRequest.getPhoneNumber())
                 .name(useRegisterRequest.getName())
                 .gender(useRegisterRequest.isGender())
                 .dateOfBirth(useRegisterRequest.getDateOfBirth())
@@ -53,7 +53,7 @@ public class UserService implements IUserService {
                 .createdAt(LocalDateTime.now())
                 .isVerified(true)
                 .password(encoder.encode(useRegisterRequest.getPassword()))
-                .email(useRegisterRequest.getEmail())
+                .email(email)
                 .build();
         return userRepository.save(user);
     }

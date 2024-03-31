@@ -1,9 +1,7 @@
 package com.project.chatbackend.services;
 
-import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Otp;
 import com.project.chatbackend.models.TempUser;
-import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.OTPRepository;
 import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.requests.OtpRequest;
@@ -63,7 +61,7 @@ public class OTPService implements IOtpService {
             String htmlContent = loadHtmlTemplate();
             htmlContent = htmlContent.replace("codeOtp", otpToken);
             htmlContent = htmlContent.replace("userName", otpRequest.getEmail());
-            sendHtmlEmail(otpRequest.getEmail(), "OTP for register", htmlContent);
+            sendHtmlEmail(otpRequest.getEmail(), htmlContent);
             return true;
         }catch (Exception e) {
             throw new RuntimeException("Error while sending OTP:"+e.getMessage());
@@ -149,11 +147,11 @@ public class OTPService implements IOtpService {
         }
     }
 
-    private void sendHtmlEmail(String to, String subject, String htmlBody) throws MessagingException {
+    private void sendHtmlEmail(String to, String htmlBody) throws MessagingException {
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         helper.setTo(to);
-        helper.setSubject(subject);
+        helper.setSubject("OTP for register");
         helper.setText(htmlBody, true);
         javaMailSender.send(message);
     }
