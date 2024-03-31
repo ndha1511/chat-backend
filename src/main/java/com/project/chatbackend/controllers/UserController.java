@@ -22,6 +22,15 @@ public class UserController {
         }
     }
 
+    @GetMapping("/email/{email}")
+    public ResponseEntity<?> findByEmail(@PathVariable String email) {
+        try {
+            return ResponseEntity.ok(userService.findByEmail(email));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+    }
+
     @GetMapping("/id/{id}")
     public ResponseEntity<?> findById(@PathVariable String id) {
         try {
