@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class UserLoginRequest {
-    private String phoneNumber;
+    private String email;
     private String password;
     private boolean isMobile;
 }

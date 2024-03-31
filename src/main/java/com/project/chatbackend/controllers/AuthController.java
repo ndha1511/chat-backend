@@ -49,15 +49,12 @@ public class AuthController {
     public ResponseEntity<?> verifyOtp(@RequestBody OtpValidRequest otpValidRequest) {
         try {
             String result = otpService.verifyOTP(otpValidRequest);
-            if(result.equals("expired")){
-                return ResponseEntity.badRequest().body("expired");
-            }else if(result.equals("not exist")){
-                return ResponseEntity.badRequest().body("not exist");
-            }else if(result.equals("invalid")){
-                return ResponseEntity.badRequest().body("invalid");
-            }else{
-                return ResponseEntity.ok("valid");
-            }
+            return switch (result) {
+                case "expired" -> ResponseEntity.badRequest().body("expired");
+                case "not exist" -> ResponseEntity.badRequest().body("not exist");
+                case "invalid" -> ResponseEntity.badRequest().body("invalid");
+                default -> ResponseEntity.ok("valid");
+            };
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
