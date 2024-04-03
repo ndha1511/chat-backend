@@ -85,7 +85,6 @@ public class UserService implements IUserService {
                     .build();
 
             List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
-
             boolean mobile = userLoginRequest.isMobile();
             Optional<Token> tokenDelete = tokens.stream()
                     .filter(t -> t.isMobile() == mobile)
