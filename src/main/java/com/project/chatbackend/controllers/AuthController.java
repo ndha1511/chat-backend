@@ -88,4 +88,39 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/sendOtpResetPassword")
+    public ResponseEntity<?> sendOtpResetPassword(@RequestBody OtpForResetPwsRequest otp) {
+        try {
+           boolean rs = otpService.sendOTPForResetPassword(otp);
+           if(rs) return ResponseEntity.ok("send otp successfully");
+           return ResponseEntity.badRequest().body("send otp fail");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+    }
+
+    @PostMapping("/validOtp")
+    public ResponseEntity<?> validOtp(@RequestBody OtpValidRequest otpValidRequest) {
+        try {
+            boolean rs = userService.isValidOTP(otpValidRequest);
+            if(rs) return ResponseEntity.ok("otp is valid");
+            return ResponseEntity.badRequest().body("otp is invalid");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+    }
+
+    @PostMapping("/resetPassword")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+        try {
+            boolean rs = userService.resetPassword(resetPasswordRequest);
+            if(rs) return ResponseEntity.ok("reset password successfully pls re login");
+            return ResponseEntity.badRequest().body("reset password fail");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+    }
+
+
+
 }

@@ -1,11 +1,11 @@
 package com.project.chatbackend.services;
 
-import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Otp;
 import com.project.chatbackend.models.TempUser;
 import com.project.chatbackend.models.User;
 import com.project.chatbackend.repositories.OTPRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.OtpForResetPwsRequest;
 import com.project.chatbackend.requests.OtpRequest;
 import com.project.chatbackend.requests.OtpValidRequest;
 import com.project.chatbackend.requests.UseRegisterRequest;
@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Random;
 
 @Service
@@ -63,7 +64,7 @@ public class OTPService implements IOtpService {
             String htmlContent = loadHtmlTemplate();
             htmlContent = htmlContent.replace("codeOtp", otpToken);
             htmlContent = htmlContent.replace("userName", otpRequest.getEmail());
-            sendHtmlEmail(otpRequest.getEmail(), "OTP for register", htmlContent);
+            sendHtmlEmail(otpRequest.getEmail(), htmlContent);
             return true;
         }catch (Exception e) {
             throw new RuntimeException("Error while sending OTP:"+e.getMessage());
@@ -132,6 +133,34 @@ public class OTPService implements IOtpService {
         return otpRepository.findByEmailAndOtp(email, otp).orElseThrow(()->new RuntimeException("Otp not found"));
     }
 
+    @Override
+    public boolean sendOTPForResetPassword(OtpForResetPwsRequest otpForResetPwsRequest) throws IOException {
+        Optional<User> optionalUser = userRepository.findByEmail(otpForResetPwsRequest.getEmail());
+        if(optionalUser.isPresent()) {
+            String otpToken = generateOTP();
+            Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
+            long updateAt = timestamp.getTime();
+            Otp otp = Otp.builder()
+                    .otp(otpToken)
+                    .email(otpForResetPwsRequest.getEmail())
+                    .expiredDate(LocalDateTime.now().plusMinutes(15L))
+                    .createdAt(updateAt).build();
+            saveOTP(otp);
+            String htmlContent = loadHtmlTemplate();
+            htmlContent = htmlContent.replace("codeOtp", otpToken);
+            htmlContent = htmlContent.replace("userName", otpForResetPwsRequest.getEmail());
+            try {
+                sendHtmlEmail(otpForResetPwsRequest.getEmail(), htmlContent);
+            } catch (MessagingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return true;
+    }
+
+
+
+
 
     private static String generateOTP(){
         Random random = new Random();
@@ -149,11 +178,11 @@ public class OTPService implements IOtpService {
         }
     }
 
-    private void sendHtmlEmail(String to, String subject, String htmlBody) throws MessagingException {
+    private void sendHtmlEmail(String to, String htmlBody) throws MessagingException {
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         helper.setTo(to);
-        helper.setSubject(subject);
+        helper.setSubject("OTP for register");
         helper.setText(htmlBody, true);
         javaMailSender.send(message);
     }

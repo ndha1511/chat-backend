@@ -2,12 +2,13 @@ package com.project.chatbackend.services;
 
 import com.project.chatbackend.configs.UserDetailConfig;
 import com.project.chatbackend.exceptions.DataNotFoundException;
+import com.project.chatbackend.models.Otp;
 import com.project.chatbackend.models.Token;
 import com.project.chatbackend.models.User;
+import com.project.chatbackend.repositories.OTPRepository;
 import com.project.chatbackend.repositories.TokenRepository;
 import com.project.chatbackend.repositories.UserRepository;
-import com.project.chatbackend.requests.UseRegisterRequest;
-import com.project.chatbackend.requests.UserLoginRequest;
+import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.LoginResponse;
 import com.project.chatbackend.responses.UserLoginResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -35,17 +37,18 @@ public class UserService implements IUserService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final TokenRepository tokenRepository;
+    private final OTPRepository otpRepository;
     @Value("${jwt.expiration}")
     private long expiration;
     @Value("${jwt.expiration-refresh-token}")
     private long expirationRefreshToken;
     @Override
     public User createUser(UseRegisterRequest useRegisterRequest) throws Exception{
-        String phoneNumber = useRegisterRequest.getPhoneNumber();
-        if(userRepository.existsByPhoneNumber(phoneNumber))
-            throw new Exception("phone number already exist");
+        String email = useRegisterRequest.getEmail();
+        if(userRepository.existsByEmail(email))
+            throw new Exception("email already exist");
         User user = User.builder()
-                .phoneNumber(phoneNumber)
+                .phoneNumber(useRegisterRequest.getPhoneNumber())
                 .name(useRegisterRequest.getName())
                 .gender(useRegisterRequest.isGender())
                 .dateOfBirth(useRegisterRequest.getDateOfBirth())
@@ -53,7 +56,7 @@ public class UserService implements IUserService {
                 .createdAt(LocalDateTime.now())
                 .isVerified(true)
                 .password(encoder.encode(useRegisterRequest.getPassword()))
-                .email(useRegisterRequest.getEmail())
+                .email(email)
                 .build();
         return userRepository.save(user);
     }
@@ -108,8 +111,8 @@ public class UserService implements IUserService {
                     token.getExpirationDateRefreshToken()
                             .isBefore(LocalDateTime.now()))
                 throw new TimeoutException("refresh fail");
-            String phoneNumber = jwtService.extractUsername(refreshToken);
-            User user = userRepository.findByPhoneNumber(phoneNumber)
+            String email = jwtService.extractUsername(refreshToken);
+            User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new UsernameNotFoundException("not found"));
             UserDetailConfig userDetailConfig = new UserDetailConfig(user);
             String newToken = jwtService.generateToken(userDetailConfig);
@@ -189,5 +192,70 @@ public class UserService implements IUserService {
         }catch (Exception e){
             return false;
         }
+    }
+    @Override
+    public boolean isValidOTP(OtpValidRequest otpValidRequest) {
+        Optional<Otp> optionalOtp = otpRepository.findByEmailAndOtp(
+                otpValidRequest.getEmail(),
+                otpValidRequest.getOtp()
+        );
+        if(optionalOtp.isPresent()) {
+            Otp otp = optionalOtp.get();
+            return otp.getExpiredDate().isAfter(LocalDateTime.now());
+        }
+        return false;
+    }
+    @Override
+    @Transactional
+    public boolean changePassword(ChangePasswordRequest changePasswordRequest) {
+        Optional<User> optionalUser = userRepository.findByEmail(changePasswordRequest.getEmail());
+        if(optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            if(isValidPassword(changePasswordRequest.getOldPassword(), user.getPassword())) {
+                String newPassword = encoder.encode(changePasswordRequest.getNewPassword());
+                user.setPassword(newPassword);
+                userRepository.save(user);
+                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                if(!tokens.isEmpty()) {
+                    for (Token token : tokens) {
+                        tokenRepository.deleteById(token.getId());
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public boolean resetPassword(ResetPasswordRequest resetPasswordRequest) {
+        OtpValidRequest otpValidRequest = OtpValidRequest.builder()
+                .email(resetPasswordRequest.getEmail())
+                .otp(resetPasswordRequest.getOtp())
+                .build();
+        if(isValidOTP(otpValidRequest)) {
+            Optional<User> optionalUser = userRepository.findByEmail(resetPasswordRequest.getEmail());
+            if(optionalUser.isPresent()) {
+                String newPassword = encoder.encode(resetPasswordRequest.getNewPassword());
+                User user = optionalUser.get();
+                user.setPassword(newPassword);
+                userRepository.save(user);
+                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                if(!tokens.isEmpty()) {
+                    for (Token token : tokens) {
+                        tokenRepository.deleteById(token.getId());
+                    }
+                }
+                return true;
+
+            }
+        }
+        return false;
+    }
+
+    private boolean isValidPassword(String password, String passwordDb) {
+        return encoder.matches(password, passwordDb);
     }
 }
