@@ -88,7 +88,6 @@ public class UserService implements IUserService {
                     .build();
 
             List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
-
             boolean mobile = userLoginRequest.isMobile();
             Optional<Token> tokenDelete = tokens.stream()
                     .filter(t -> t.isMobile() == mobile)
@@ -125,7 +124,6 @@ public class UserService implements IUserService {
                     .refreshToken(refreshToken)
                     .build();
         }
-
         throw new DataNotFoundException("token not found");
     }
 
@@ -236,7 +234,10 @@ public class UserService implements IUserService {
                 .email(resetPasswordRequest.getEmail())
                 .otp(resetPasswordRequest.getOtp())
                 .build();
+        System.out.println(otpValidRequest.getEmail());
+        System.out.println(otpValidRequest.getOtp());
         if(isValidOTP(otpValidRequest)) {
+            otpRepository.deleteByEmail(resetPasswordRequest.getEmail());
             Optional<User> optionalUser = userRepository.findByEmail(resetPasswordRequest.getEmail());
             if(optionalUser.isPresent()) {
                 String newPassword = encoder.encode(resetPasswordRequest.getNewPassword());
@@ -253,6 +254,7 @@ public class UserService implements IUserService {
 
             }
         }
+        otpRepository.deleteByEmail(resetPasswordRequest.getEmail());
         return false;
     }
 

@@ -17,6 +17,7 @@ public class UploadController {
             System.out.println("đã gưửi");
             return UploadFile.upload(List.of(multipartFile));
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             return "upload fail";
         }
     }
