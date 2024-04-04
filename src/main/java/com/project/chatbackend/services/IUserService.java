@@ -21,4 +21,5 @@ public interface IUserService {
 
     boolean changePassword(ChangePasswordRequest changePasswordRequest);
     boolean resetPassword(ResetPasswordRequest resetPasswordRequest);
+    User updateUser(UserUpdateRequest updateUserRequest) throws Exception;
 }

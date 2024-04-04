@@ -259,6 +259,21 @@ public class UserService implements IUserService {
         return false;
     }
 
+    @Override
+    public User updateUser(UserUpdateRequest updateUserRequest) throws Exception {
+        Optional<User> optionalUser = userRepository.findByEmail(updateUserRequest.getEmail());
+        if(optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            user.setName(updateUserRequest.getName());
+            user.setGender(updateUserRequest.isGender());
+            user.setAvatar(updateUserRequest.getAvatar());
+            user.setDateOfBirth(updateUserRequest.getDob());
+            return userRepository.save(user);
+        }else {
+            throw new DataNotFoundException("user not found");
+        }
+    }
+
     private boolean isValidPassword(String password, String passwordDb) {
         return encoder.matches(password, passwordDb);
     }
