@@ -1,6 +1,7 @@
 package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.requests.ChangePasswordRequest;
+import com.project.chatbackend.requests.UserUpdateRequest;
 import com.project.chatbackend.responses.UserLoginResponse;
 import com.project.chatbackend.services.UserService;
 import jakarta.validation.Valid;
@@ -69,6 +70,24 @@ public class UserController {
             return ResponseEntity.badRequest().body("change password fail");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e);
+        }
+    }
+
+    @PutMapping("/updateUser")
+    public ResponseEntity<?> updateUser(@Valid @RequestBody UserUpdateRequest updateUserRequest,
+                                        BindingResult result) {
+        try {
+            if (result.hasErrors()) {
+                List<String> errMessages = result.getFieldErrors()
+                        .stream()
+                        .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                        .toList();
+                return ResponseEntity.badRequest().body(errMessages);
+            }
+            userService.updateUser(updateUserRequest);
+            return ResponseEntity.ok("update user successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
