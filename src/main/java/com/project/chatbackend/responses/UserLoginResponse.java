@@ -3,6 +3,7 @@ package com.project.chatbackend.responses;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -15,5 +16,6 @@ public class UserLoginResponse {
     private String phoneNumber;
     private String coverImage;
     private String email;
+    private String dob;
     private List<String> images;
 }

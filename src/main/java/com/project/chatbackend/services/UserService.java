@@ -153,6 +153,7 @@ public class UserService implements IUserService {
                     .coverImage(user.getCoverImage())
                     .images(user.getImages())
                     .email(user.getEmail())
+                    .dob(user.getDateOfBirth().toString())
                     .build();
         }
         throw new DataNotFoundException("user not found");
