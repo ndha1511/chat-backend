@@ -154,8 +154,10 @@ public class OTPService implements IOtpService {
             } catch (MessagingException e) {
                 throw new RuntimeException(e);
             }
+            return true;
         }
-        return true;
+        return false;
+
     }
 
 
