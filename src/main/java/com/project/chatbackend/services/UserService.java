@@ -87,7 +87,8 @@ public class UserService implements IUserService {
                     .expirationDateRefreshToken(LocalDateTime.now().plusSeconds(expirationRefreshToken))
                     .build();
 
-            List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+            List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
+
             boolean mobile = userLoginRequest.isMobile();
             Optional<Token> tokenDelete = tokens.stream()
                     .filter(t -> t.isMobile() == mobile)
@@ -124,6 +125,7 @@ public class UserService implements IUserService {
                     .refreshToken(refreshToken)
                     .build();
         }
+
         throw new DataNotFoundException("token not found");
     }
 
@@ -145,7 +147,6 @@ public class UserService implements IUserService {
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
             return UserLoginResponse.builder()
-                    .id(user.getId())
                     .avatar(user.getAvatar())
                     .name(user.getName())
                     .phoneNumber(user.getPhoneNumber())
@@ -153,7 +154,6 @@ public class UserService implements IUserService {
                     .coverImage(user.getCoverImage())
                     .images(user.getImages())
                     .email(user.getEmail())
-                    .dob(user.getDateOfBirth().toString())
                     .build();
         }
         throw new DataNotFoundException("user not found");
@@ -164,7 +164,6 @@ public class UserService implements IUserService {
         return userRepository.findById(id)
                 .map(user -> UserLoginResponse
                         .builder()
-                        .id(user.getId())
                         .avatar(user.getAvatar())
                         .name(user.getName())
                         .phoneNumber(user.getPhoneNumber())
@@ -187,7 +186,7 @@ public class UserService implements IUserService {
     public boolean deleteUserByEmail(String email) {
         try{
             User user = userRepository.findByEmail(email).orElseThrow();
-            userRepository.deleteById(user.getId());
+            userRepository.deleteById(user.getEmail());
             return true;
         }catch (Exception e){
             return false;
@@ -215,7 +214,7 @@ public class UserService implements IUserService {
                 String newPassword = encoder.encode(changePasswordRequest.getNewPassword());
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());
@@ -235,17 +234,14 @@ public class UserService implements IUserService {
                 .email(resetPasswordRequest.getEmail())
                 .otp(resetPasswordRequest.getOtp())
                 .build();
-        System.out.println(otpValidRequest.getEmail());
-        System.out.println(otpValidRequest.getOtp());
         if(isValidOTP(otpValidRequest)) {
-            otpRepository.deleteByEmail(resetPasswordRequest.getEmail());
             Optional<User> optionalUser = userRepository.findByEmail(resetPasswordRequest.getEmail());
             if(optionalUser.isPresent()) {
                 String newPassword = encoder.encode(resetPasswordRequest.getNewPassword());
                 User user = optionalUser.get();
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());
@@ -255,7 +251,6 @@ public class UserService implements IUserService {
 
             }
         }
-        otpRepository.deleteByEmail(resetPasswordRequest.getEmail());
         return false;
     }
 

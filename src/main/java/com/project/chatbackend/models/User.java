@@ -15,8 +15,6 @@ import java.util.List;
 @AllArgsConstructor @NoArgsConstructor
 @Builder
 public class User {
-    @Id
-    private String id;
     private String name;
     private boolean gender;
     @Field(name = "date_of_birth")
@@ -24,8 +22,7 @@ public class User {
     @Indexed
     @Field(name = "phone_number")
     private String phoneNumber;
-    @Indexed
-    @Field(name = "email")
+    @Id
     private String email;
     private String password;
     private String avatar;

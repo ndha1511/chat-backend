@@ -1,7 +1,6 @@
 package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
-import com.project.chatbackend.models.Message;
 import com.project.chatbackend.services.IMessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -15,16 +14,16 @@ public class ChatController {
     private final IMessageService messageService;
     private final SimpMessagingTemplate simpMessagingTemplate;
 
-    @MessageMapping("/chat")
-    public void processMessage(@Payload Message message) {
-        try {
-            Message msg = messageService.saveMessage(message);
-            simpMessagingTemplate.convertAndSendToUser(
-                message.getReceiverId(), "/queue/messages",
-                    msg.getId()
-            );
-        } catch (DataNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    @MessageMapping("/chat")
+//    public void processMessage(@Payload Message message) {
+//        try {
+//            Message msg = messageService.saveMessage(message);
+//            simpMessagingTemplate.convertAndSendToUser(
+//                message.getReceiverId(), "/queue/messages",
+//                    msg.getId()
+//            );
+//        } catch (DataNotFoundException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 }

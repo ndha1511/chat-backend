@@ -34,3 +34,5 @@ build/
 
 ### Uploads ###
 /uploads
+
+/src/main/resources/application.yml

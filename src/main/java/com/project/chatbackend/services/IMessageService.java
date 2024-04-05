@@ -2,11 +2,15 @@ package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
+import com.project.chatbackend.requests.ChatRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
 
 public interface IMessageService {
-    Message saveMessage(Message message) throws DataNotFoundException;
+    @Async
+    void saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
     Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest);
-    void updateStatusMessage(String id, Message message);
+
+    void updateMessage(String id, ChatRequest chatRequest);
 }
