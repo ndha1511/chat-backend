@@ -5,5 +5,7 @@ public enum MessageStatus {
     SEEN,
     SENDING,
     UNDELIVERABLE,
-    RECEIVED
+    RECEIVED,
+    ERROR,
+    REVOKED,
 }

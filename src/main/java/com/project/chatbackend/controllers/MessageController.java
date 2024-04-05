@@ -2,6 +2,7 @@ package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
+import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.IMessageService;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -19,7 +19,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MessageController {
     private final IMessageService messageService;
-    private final SimpMessagingTemplate simpMessagingTemplate;
 
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getAllByRoomId(@PathVariable String roomId,
@@ -43,23 +42,19 @@ public class MessageController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<?> sendMessage(@RequestBody Message message) {
+    public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest) {
         try {
-            Message msg = messageService.saveMessage(message);
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getReceiverId(), "/queue/messages",
-                    msg.getId()
-            );
-            return ResponseEntity.ok(msg);
+            messageService.saveMessage(chatRequest);
+            return ResponseEntity.ok("sending message");
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body("send message fail");
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateStatusMessage(@PathVariable String id, @RequestBody Message message) {
+    public ResponseEntity<?> updateMessage(@PathVariable String id, @RequestBody ChatRequest chatRequest) {
         try {
-            messageService.updateStatusMessage(id, message);
+            messageService.updateMessage(id, chatRequest);
             return ResponseEntity.ok("updated");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("update message fail");

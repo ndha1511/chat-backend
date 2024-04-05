@@ -87,7 +87,7 @@ public class UserService implements IUserService {
                     .expirationDateRefreshToken(LocalDateTime.now().plusSeconds(expirationRefreshToken))
                     .build();
 
-            List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+            List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
 
             boolean mobile = userLoginRequest.isMobile();
             Optional<Token> tokenDelete = tokens.stream()
@@ -147,7 +147,6 @@ public class UserService implements IUserService {
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
             return UserLoginResponse.builder()
-                    .id(user.getId())
                     .avatar(user.getAvatar())
                     .name(user.getName())
                     .phoneNumber(user.getPhoneNumber())
@@ -165,7 +164,6 @@ public class UserService implements IUserService {
         return userRepository.findById(id)
                 .map(user -> UserLoginResponse
                         .builder()
-                        .id(user.getId())
                         .avatar(user.getAvatar())
                         .name(user.getName())
                         .phoneNumber(user.getPhoneNumber())
@@ -188,7 +186,7 @@ public class UserService implements IUserService {
     public boolean deleteUserByEmail(String email) {
         try{
             User user = userRepository.findByEmail(email).orElseThrow();
-            userRepository.deleteById(user.getId());
+            userRepository.deleteById(user.getEmail());
             return true;
         }catch (Exception e){
             return false;
@@ -216,7 +214,7 @@ public class UserService implements IUserService {
                 String newPassword = encoder.encode(changePasswordRequest.getNewPassword());
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());
@@ -243,7 +241,7 @@ public class UserService implements IUserService {
                 User user = optionalUser.get();
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getId());
+                List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());

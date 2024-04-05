@@ -1,5 +1,6 @@
 package com.project.chatbackend.models;
 
+
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -25,16 +26,20 @@ public class Message {
     private String receiverId;
     private Object content;
     @Field(name = "send_date")
+//    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime sendDate;
     @Field(name = "seen_date")
+//    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime seenDate;
     @Field(name = "message_type")
     private MessageType messageType;
     private List<EmojiMessage> emojis;
     @Field(name = "number_of_emojis")
     private int numberOfEmojis;
-    @Field(name = "messages_reply_id")
-    private List<String> messagesReplyId;
+    @Field(name = "messages_parent_id")
+    private String messagesParentId;
     @Field(name = "message_status")
     private MessageStatus messageStatus;
+    @Field(name = "hidden_sender_side")
+    private boolean hiddenSenderSide;
 }
