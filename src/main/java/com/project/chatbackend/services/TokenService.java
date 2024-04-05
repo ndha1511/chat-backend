@@ -28,6 +28,6 @@ public class TokenService implements ITokenService {
 
     @Override
     public List<Token> findAllByUserId(String userId) {
-        return tokenRepository.findAllByUserId(userId);
+        return tokenRepository.findAllByUserEmail(userId);
     }
 }

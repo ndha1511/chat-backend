@@ -87,7 +87,7 @@ public class UserService implements IUserService {
                     .expirationDateRefreshToken(LocalDateTime.now().plusSeconds(expirationRefreshToken))
                     .build();
 
-            List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
+            List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
 
             boolean mobile = userLoginRequest.isMobile();
             Optional<Token> tokenDelete = tokens.stream()
@@ -214,7 +214,7 @@ public class UserService implements IUserService {
                 String newPassword = encoder.encode(changePasswordRequest.getNewPassword());
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
+                List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());
@@ -241,7 +241,7 @@ public class UserService implements IUserService {
                 User user = optionalUser.get();
                 user.setPassword(newPassword);
                 userRepository.save(user);
-                List<Token> tokens = tokenRepository.findAllByUserId(user.getEmail());
+                List<Token> tokens = tokenRepository.findAllByUserEmail(user.getEmail());
                 if(!tokens.isEmpty()) {
                     for (Token token : tokens) {
                         tokenRepository.deleteById(token.getId());

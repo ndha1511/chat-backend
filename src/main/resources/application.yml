@@ -25,5 +25,5 @@ jwt:
   expiration-refresh-token: 1296000 # 15 days
   secretKey: pfXd5yXy6mas0PjEB1H3WIX0QjJNh9UsOQMKUhLDaWQ=
 
-login:
-  max-device: 2
+
+
