@@ -5,7 +5,8 @@ spring:
       max-request-size: 50MB
   data:
     mongodb:
-      uri: mongodb+srv://ndha:w3tu5mFXgFlYEB66@mycluster.m7h7a2u.mongodb.net/?retryWrites=true&w=majority&appName=myCluster
+#      uri: mongodb+srv://ndha:w3tu5mFXgFlYEB66@mycluster.m7h7a2u.mongodb.net/?retryWrites=true&w=majority&appName=myCluster
+      uri: mongodb://localhost:27017
       database: chat-app
   mail:
     host: smtp.gmail.com

@@ -112,14 +112,21 @@ public class AuthController {
 
     @PostMapping("/resetPassword")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+        System.out.println(resetPasswordRequest.getNewPassword());
+        System.out.println(resetPasswordRequest.getConfirmNewPassword());
+        System.out.println(resetPasswordRequest.getEmail());
+        System.out.println(resetPasswordRequest.getOtp());
         try {
             boolean rs = userService.resetPassword(resetPasswordRequest);
+            System.out.println(rs);
             if(rs) return ResponseEntity.ok("reset password successfully pls re login");
             return ResponseEntity.badRequest().body("reset password fail");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e);
         }
     }
+
+
 
 
 

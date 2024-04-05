@@ -18,6 +18,8 @@ public class TempUserService implements ITempUserService{
                 .name(useRegisterRequest.getName())
                 .dateOfBirth(useRegisterRequest.getDateOfBirth())
                 .avatar(useRegisterRequest.getAvatar())
+                .phoneNumber(useRegisterRequest.getPhoneNumber())
+                .gender(useRegisterRequest.isGender())
                 .build());
     }
 
@@ -34,6 +36,8 @@ public class TempUserService implements ITempUserService{
             tempUser.setName(useRegisterRequest.getName());
             tempUser.setDateOfBirth(useRegisterRequest.getDateOfBirth());
             tempUser.setAvatar(useRegisterRequest.getAvatar());
+            tempUser.setPhoneNumber(useRegisterRequest.getPhoneNumber());
+            tempUser.setGender(useRegisterRequest.isGender());
             return tempUserRepository.save(tempUser);
         }).orElseThrow(()->new Exception("Email not found"));
     }
