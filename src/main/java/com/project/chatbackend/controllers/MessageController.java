@@ -24,7 +24,7 @@ public class MessageController {
     public ResponseEntity<?> getAllByRoomId(@PathVariable String roomId,
                                             @RequestParam Optional<Integer> page,
                                             @RequestParam Optional<Integer> limit
-                                            ) {
+    ) {
         int pageNum = page.orElse(0);
         int limitNum = limit.orElse(40);
         PageRequest pageRequest = PageRequest.of(pageNum, limitNum,
@@ -44,8 +44,9 @@ public class MessageController {
     @PostMapping("/chat")
     public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest) {
         try {
-            messageService.saveMessage(chatRequest);
-            return ResponseEntity.ok("sending message");
+            Message messageTmp = messageService.saveMessage(chatRequest);
+            messageService.saveMessage(chatRequest, messageTmp);
+            return ResponseEntity.ok(messageTmp);
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body("send message fail");
         }

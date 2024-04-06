@@ -9,8 +9,9 @@ import org.springframework.scheduling.annotation.Async;
 
 public interface IMessageService {
     @Async
-    void saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
+    void saveMessage(ChatRequest chatRequest, Message messageTmp) throws DataNotFoundException;
     Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest);
 
     void updateMessage(String id, ChatRequest chatRequest);
+    Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
 }

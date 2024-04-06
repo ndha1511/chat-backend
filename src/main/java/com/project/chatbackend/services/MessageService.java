@@ -1,13 +1,11 @@
 package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
-import com.project.chatbackend.models.FileObject;
-import com.project.chatbackend.models.Message;
-import com.project.chatbackend.models.MessageStatus;
-import com.project.chatbackend.models.Room;
+import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.requests.ChatRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -23,27 +22,49 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageService implements IMessageService {
     private final MessageRepository messageRepository;
     private final RoomService roomService;
     private final S3UploadService s3UploadService;
     private final SimpMessagingTemplate simpMessagingTemplate;
+
     @Override
     @Async
     @Transactional
-    public void saveMessage(ChatRequest chatRequest)  {
+    public void saveMessage(ChatRequest chatRequest, Message messageTmp) {
         Message message = convertToMessage(chatRequest);
+        message.setId(messageTmp.getId());
+        message.setRoomId(messageTmp.getRoomId());
+        String roomIdConvert = message.getRoomId();
         try {
             if (chatRequest.getFileContent() != null) {
                 FileObject fileObject = uploadFile(chatRequest.getFileContent());
                 message.setContent(fileObject);
             }
-            String roomIdConvert = getRoomIdConvert(chatRequest.getSenderId(),
-                    chatRequest.getReceiverId(), message);
-
             message.setRoomId(roomIdConvert);
             message.setMessageStatus(MessageStatus.SENT);
             messageRepository.save(message);
+            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+            for (Room room : rooms) {
+                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                    if(message.getContent() instanceof FileObject) {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    roomService.saveRoom(room);
+                } else {
+                    if(message.getContent() instanceof FileObject) {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(false);
+                    roomService.saveRoom(room);
+                }
+            }
             simpMessagingTemplate.convertAndSendToUser(
                     message.getSenderId(), "queue/messages",
                     message
@@ -53,7 +74,22 @@ public class MessageService implements IMessageService {
                     message
             );
         } catch (Exception e) {
+            log.error("error line 59:  " + e);
+            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+            for (Room room : rooms) {
+                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                    if (message.getContent() instanceof FileObject fileObject) {
+                        room.setLatestMessage(fileObject.getFilename());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    roomService.saveRoom(room);
+                    break;
+                }
+            }
             message.setMessageStatus(MessageStatus.ERROR);
+            messageRepository.save(message);
             simpMessagingTemplate.convertAndSendToUser(
                     message.getSenderId(), "queue/messages",
                     message
@@ -62,27 +98,12 @@ public class MessageService implements IMessageService {
 
     }
 
-    private String getRoomIdConvert(String senderId, String receiverId, Message message) throws DataNotFoundException {
+    private String getRoomIdConvert(String senderId, String receiverId) throws DataNotFoundException {
         var roomId = roomService.getRoomId(senderId, receiverId);
-        String roomIdConvert = roomId.orElseThrow(() -> new DataNotFoundException("room not found"));
-        List<Room> rooms = roomService.findByRoomId(roomIdConvert);
-        for (Room room : rooms) {
-            if (Objects.equals(room.getSenderId(), senderId)) {
-                room.setLatestMessage(message.getContent().toString());
-                room.setTime(LocalDateTime.now());
-                room.setSender(true);
-                room.setNumberOfUnreadMessage(0);
-                roomService.saveRoom(room);
-            } else {
-                room.setLatestMessage(message.getContent().toString());
-                room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                room.setTime(LocalDateTime.now());
-                room.setSender(false);
-                roomService.saveRoom(room);
-            }
-        }
-        return roomIdConvert;
+        return roomId.orElseThrow(() -> new DataNotFoundException("room not found"));
     }
+
+
 
     @Override
     public Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest) {
@@ -101,19 +122,46 @@ public class MessageService implements IMessageService {
         messageRepository.save(newMsg);
     }
 
-    private Message convertToMessage(ChatRequest chatRequest) {
+    @Override
+    public Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException {
+        String roomId = getRoomIdConvert(chatRequest.getSenderId(), chatRequest.getReceiverId());
+        Message message = convertToMessage(chatRequest);
+        message.setRoomId(roomId);
+        return messageRepository.save(message);
+    }
+
+
+    public Message convertToMessage(ChatRequest chatRequest) {
+        if(chatRequest.getFileContent() != null) {
+            MultipartFile multipartFile = chatRequest.getFileContent();
+            String fileName = multipartFile.getOriginalFilename();
+            assert fileName != null;
+            String[] fileExtensions = fileName.split("\\.");
+            FileObject fileObject = FileObject.builder()
+                    .filename(fileExtensions[0])
+                    .fileExtension(fileExtensions[fileExtensions.length - 1])
+                    .build();
+            return Message.builder()
+                    .senderId(chatRequest.getSenderId())
+                    .receiverId(chatRequest.getReceiverId())
+                    .messageType(chatRequest.getMessageType())
+                    .messageStatus(MessageStatus.SENDING)
+                    .content(fileObject)
+                    .seenDate(LocalDateTime.now())
+                    .build();
+        }
         return Message.builder()
                 .senderId(chatRequest.getSenderId())
                 .receiverId(chatRequest.getReceiverId())
                 .messageType(chatRequest.getMessageType())
-                .messageStatus(chatRequest.getMessageStatus())
+                .messageStatus(MessageStatus.SENDING)
                 .content(chatRequest.getTextContent())
                 .seenDate(LocalDateTime.now())
                 .build();
     }
 
 
-    public FileObject uploadFile(MultipartFile multipartFile) {
+    public FileObject uploadFile(MultipartFile multipartFile) throws IOException {
         Map<String, String> fileInfo = s3UploadService.uploadFile(multipartFile);
         String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
         String filePath = fileInfo.get(fileKey);

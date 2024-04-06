@@ -29,7 +29,7 @@ public class S3UploadService {
     private String region;
     private final AmazonS3 s3Client;
 
-    public Map<String, String> uploadFile(MultipartFile file) {
+    public Map<String, String> uploadFile(MultipartFile file) throws IOException {
         log.info("start uploading at " + new Date(System.currentTimeMillis()));
         File fileObj = convertMultiPartFileToFile(file);
         String fileName = System.currentTimeMillis() + "_" + Objects.
@@ -44,15 +44,11 @@ public class S3UploadService {
     }
 
 
-    public byte[] downloadFile(String fileName) {
+    public byte[] downloadFile(String fileName) throws IOException {
         S3Object s3Object = s3Client.getObject(bucketName, fileName);
         S3ObjectInputStream inputStream = s3Object.getObjectContent();
-        try {
-            return IOUtils.toByteArray(inputStream);
-        } catch (IOException e) {
-            log.error("download file fail!" + e);
-        }
-        return null;
+        return IOUtils.toByteArray(inputStream);
+
     }
 
 
@@ -62,12 +58,10 @@ public class S3UploadService {
     }
 
 
-    private File convertMultiPartFileToFile(MultipartFile file) {
+    private File convertMultiPartFileToFile(MultipartFile file) throws IOException {
         File convertedFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
         try (FileOutputStream fos = new FileOutputStream(convertedFile)) {
             fos.write(file.getBytes());
-        } catch (IOException e) {
-            log.error("Error converting multipartFile to file", e);
         }
         return convertedFile;
     }
