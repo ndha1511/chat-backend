@@ -5,6 +5,7 @@ import com.project.chatbackend.models.Message;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.IMessageService;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +23,7 @@ public class MessageController {
 
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getAllByRoomId(@PathVariable String roomId,
+                                            @RequestParam String senderId,
                                             @RequestParam Optional<Integer> page,
                                             @RequestParam Optional<Integer> limit
     ) {
@@ -30,12 +32,9 @@ public class MessageController {
         PageRequest pageRequest = PageRequest.of(pageNum, limitNum,
                 Sort.by("sendDate").descending());
         try {
-            Page<Message> messagePage = messageService.getAllByRoomId(roomId, pageRequest);
-            MessageResponse messageResponse = MessageResponse.builder()
-                    .messages(messagePage.getContent())
-                    .totalPage(messagePage.getTotalPages())
-                    .build();
-            return ResponseEntity.ok(messageResponse);
+            MessageResponse messagePage = messageService.getAllByRoomId(senderId,roomId, pageRequest);
+
+            return ResponseEntity.ok(messagePage);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("bad request");
         }

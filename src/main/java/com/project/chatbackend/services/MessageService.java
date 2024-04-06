@@ -4,9 +4,11 @@ import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.requests.ChatRequest;
+import com.project.chatbackend.responses.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -16,9 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +49,7 @@ public class MessageService implements IMessageService {
             }
             message.setRoomId(roomIdConvert);
             message.setMessageStatus(MessageStatus.SENT);
+            message.setSendDate(LocalDateTime.now());
             messageRepository.save(message);
             List<Room> rooms = roomService.findByRoomId(roomIdConvert);
             for (Room room : rooms) {
@@ -106,8 +112,33 @@ public class MessageService implements IMessageService {
 
 
     @Override
-    public Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest) {
-        return messageRepository.getAllByRoomId(roomId, pageRequest);
+    public MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest) {
+        Page<Message> messagePage = messageRepository.getAllByRoomId(roomId, pageRequest);
+
+        try {
+            List<Message> messagesSend = messagePage.getContent().stream().filter(msg ->
+                    msg.getSenderId().equals(senderId)
+            ).toList();
+            List<Message> messagesReceive = messagePage.getContent().stream().filter(msg ->
+                    !msg.getSenderId().equals(senderId)
+            ).toList();
+            List<Message> messagesFilter = messagesReceive.stream().filter(msg ->
+                    !msg.getMessageStatus().equals(MessageStatus.SENDING) &&
+                            !msg.getMessageStatus().equals(MessageStatus.ERROR)
+            ).toList();
+            List<Message> results = Stream
+                    .concat(messagesSend.stream(), messagesFilter.stream())
+                    .sorted(Comparator.comparing(Message::getSendDate))
+                    .toList();
+            return MessageResponse.builder()
+                    .messages(results)
+                    .totalPage(messagePage.getTotalPages())
+                    .build();
+        } catch (Exception e) {
+            log.error("error ", e);
+
+            return null;
+        }
     }
 
     @Override
@@ -126,6 +157,7 @@ public class MessageService implements IMessageService {
     public Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException {
         String roomId = getRoomIdConvert(chatRequest.getSenderId(), chatRequest.getReceiverId());
         Message message = convertToMessage(chatRequest);
+        message.setSendDate(LocalDateTime.now());
         message.setRoomId(roomId);
         return messageRepository.save(message);
     }
@@ -147,7 +179,6 @@ public class MessageService implements IMessageService {
                     .messageType(chatRequest.getMessageType())
                     .messageStatus(MessageStatus.SENDING)
                     .content(fileObject)
-                    .seenDate(LocalDateTime.now())
                     .build();
         }
         return Message.builder()
@@ -156,7 +187,6 @@ public class MessageService implements IMessageService {
                 .messageType(chatRequest.getMessageType())
                 .messageStatus(MessageStatus.SENDING)
                 .content(chatRequest.getTextContent())
-                .seenDate(LocalDateTime.now())
                 .build();
     }
 

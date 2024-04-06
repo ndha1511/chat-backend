@@ -150,6 +150,7 @@ public class UserService implements IUserService {
                     .avatar(user.getAvatar())
                     .name(user.getName())
                     .phoneNumber(user.getPhoneNumber())
+                    .dob(String.valueOf(user.getDateOfBirth()))
                     .gender(user.isGender())
                     .coverImage(user.getCoverImage())
                     .images(user.getImages())

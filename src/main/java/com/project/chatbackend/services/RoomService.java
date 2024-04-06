@@ -55,7 +55,7 @@ public class RoomService implements IRoomService{
             userLoginResponse = userRepository
                     .findById(room.getReceiverId())
                     .map(user -> UserLoginResponse.builder()
-                            .id(user.getEmail())
+                            .email(user.getEmail())
                             .name(user.getName())
                             .avatar(user.getAvatar())
                             .gender(user.isGender())
@@ -67,7 +67,7 @@ public class RoomService implements IRoomService{
             return RoomResponse.builder()
                     .objectId(room.getId())
                     .roomId(room.getRoomId())
-                    .receiverId(userLoginResponse.getId())
+                    .receiverId(userLoginResponse.getEmail())
                     .senderId(room.getSenderId())
                     .time(room.getTime())
                     .latestMessage(room.getLatestMessage())

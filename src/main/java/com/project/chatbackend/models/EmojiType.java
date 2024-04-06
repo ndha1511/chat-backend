@@ -5,5 +5,6 @@ public enum EmojiType {
     HEART,
     SMILE,
     CRY,
-    ANGRY
+    ANGRY,
+    WOW
 }
