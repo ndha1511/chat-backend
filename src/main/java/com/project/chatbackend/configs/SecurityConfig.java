@@ -45,8 +45,7 @@ public class SecurityConfig {
                     author.requestMatchers(
                             "/api/v1/auth/**",
                             "ws/**",
-                            "/api/v1/uploads/**",
-                            "/api/v1/messages/chat"
+                            "/api/v1/uploads/**"
                     ).permitAll();
                     author.anyRequest().authenticated();
                 })
