@@ -4,6 +4,7 @@ import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.requests.ChatRequest;
+import com.project.chatbackend.requests.UserNotify;
 import com.project.chatbackend.responses.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,13 +72,25 @@ public class MessageService implements IMessageService {
                     roomService.saveRoom(room);
                 }
             }
+            UserNotify success = UserNotify.builder()
+                    .status("SUCCESS")
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .message(message)
+                    .build();
+            UserNotify sent = UserNotify.builder()
+                    .status("SENT")
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .message(message)
+                    .build();
             simpMessagingTemplate.convertAndSendToUser(
                     message.getSenderId(), "queue/messages",
-                    message
+                    success
             );
             simpMessagingTemplate.convertAndSendToUser(
                     message.getReceiverId(), "queue/messages",
-                    message
+                    sent
             );
         } catch (Exception e) {
             log.error("error line 59:  " + e);
@@ -94,12 +107,17 @@ public class MessageService implements IMessageService {
                     break;
                 }
             }
+            UserNotify error = UserNotify.builder()
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .status("ERROR")
+                    .build();
             message.setMessageStatus(MessageStatus.ERROR);
             message.setSendDate(LocalDateTime.now());
             messageRepository.save(message);
             simpMessagingTemplate.convertAndSendToUser(
                     message.getSenderId(), "queue/messages",
-                    message
+                    error
             );
         }
 
@@ -157,6 +175,16 @@ public class MessageService implements IMessageService {
         message.setSendDate(LocalDateTime.now());
         message.setRoomId(roomId);
         return messageRepository.save(message);
+    }
+
+    @Override
+    public void revokeMessage(String messageId) {
+
+    }
+
+    @Override
+    public void forwardMessage(String messageId, String senderId, String receiverId) {
+
     }
 
 
