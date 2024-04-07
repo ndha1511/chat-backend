@@ -31,16 +31,23 @@ public class S3UploadService {
 
     public Map<String, String> uploadFile(MultipartFile file) throws IOException {
         log.info("start uploading at " + new Date(System.currentTimeMillis()));
-        File fileObj = convertMultiPartFileToFile(file);
-        String fileName = System.currentTimeMillis() + "_" + Objects.
-                requireNonNull(file.getOriginalFilename())
-                .replace(" ", "-");
-        s3Client.putObject(new PutObjectRequest(bucketName, fileName, fileObj));
-        fileObj.delete();
-        log.info("end upload at" + new Date(System.currentTimeMillis()));
-        Map<String, String> fileInfo = new HashMap<>();
-        fileInfo.put(fileName, "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName);
-        return fileInfo;
+        File fileObj = null;
+        try {
+            fileObj = convertMultiPartFileToFile(file);
+            String fileName = System.currentTimeMillis() + "_" + Objects.
+                    requireNonNull(file.getOriginalFilename())
+                    .replace(" ", "-");
+            s3Client.putObject(new PutObjectRequest(bucketName, fileName, fileObj));
+            fileObj.delete();
+            log.info("end upload at" + new Date(System.currentTimeMillis()));
+            Map<String, String> fileInfo = new HashMap<>();
+            fileInfo.put(fileName, "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName);
+            return fileInfo;
+        } catch (Exception io) {
+            assert fileObj != null;
+            fileObj.delete();
+            throw io;
+        }
     }
 
 
@@ -62,6 +69,9 @@ public class S3UploadService {
         File convertedFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
         try (FileOutputStream fos = new FileOutputStream(convertedFile)) {
             fos.write(file.getBytes());
+        } catch (Exception ex) {
+            convertedFile.delete();
+            throw ex;
         }
         return convertedFile;
     }
