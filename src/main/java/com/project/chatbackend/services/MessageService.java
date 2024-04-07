@@ -95,6 +95,7 @@ public class MessageService implements IMessageService {
                 }
             }
             message.setMessageStatus(MessageStatus.ERROR);
+            message.setSendDate(LocalDateTime.now());
             messageRepository.save(message);
             simpMessagingTemplate.convertAndSendToUser(
                     message.getSenderId(), "queue/messages",
@@ -191,12 +192,13 @@ public class MessageService implements IMessageService {
         Map<String, String> fileInfo = s3UploadService.uploadFile(multipartFile);
         String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
         String filePath = fileInfo.get(fileKey);
+        String fileName = Objects.requireNonNull(multipartFile.getOriginalFilename()).split("\\.")[0];
         String[] extension = fileKey.split("\\.");
         return FileObject.builder()
                 .fileKey(fileKey)
                 .fileExtension(extension[extension.length - 1])
                 .filePath(filePath)
-                .filename(extension[0])
+                .filename(fileName)
                 .build();
     }
 }
