@@ -88,6 +88,16 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/refreshToken-formData")
+    public ResponseEntity<?> refreshTokenFormData(@ModelAttribute RefreshTokenRequest refreshTokenRequest) {
+        try {
+            LoginResponse loginResponse = userService.refreshToken(refreshTokenRequest.getRefreshToken());
+            return ResponseEntity.ok(loginResponse);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("refresh token fail");
+        }
+    }
+
     @PostMapping("/sendOtpResetPassword")
     public ResponseEntity<?> sendOtpResetPassword(@RequestBody OtpForResetPwsRequest otp) {
         try {
