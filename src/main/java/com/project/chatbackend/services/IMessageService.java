@@ -2,6 +2,7 @@ package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
+import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.MessageResponse;
 import org.springframework.data.domain.PageRequest;
@@ -14,6 +15,9 @@ public interface IMessageService {
 
     void updateMessage(String id, ChatRequest chatRequest);
     Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
-    void revokeMessage(String messageId);
+    Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception;
+    void revokeMessage(String messageId, String receiverId);
     void forwardMessage(String messageId, String senderId, String receiverId);
+    @Async
+    void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
 }
