@@ -3,6 +3,7 @@ package com.project.chatbackend.services;
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.MessageRepository;
+import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.requests.UserNotify;
 import com.project.chatbackend.responses.MessageResponse;
@@ -19,10 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,6 +34,7 @@ public class MessageService implements IMessageService {
     private final RoomService roomService;
     private final S3UploadService s3UploadService;
     private final SimpMessagingTemplate simpMessagingTemplate;
+    private final FileUpload fileUpload;
 
     @Override
     @Async
@@ -178,8 +179,26 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    public void revokeMessage(String messageId) {
+    public Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
+        Message message = convertImageGroupToMessage(chatImageGroupRequest);
+        return messageRepository.save(message);
+    }
 
+    @Override
+    public void revokeMessage(String messageId, String receiverId) {
+        Optional<Message> optionalMessage = messageRepository.findById(messageId);
+        Message message = optionalMessage.orElseThrow();
+        message.setMessageStatus(MessageStatus.REVOKED);
+        messageRepository.save(message);
+        UserNotify revoke = UserNotify.builder()
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .status("REVOKED_MESSAGE")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                receiverId, "queue/messages",
+                revoke
+        );
     }
 
     @Override
@@ -187,11 +206,142 @@ public class MessageService implements IMessageService {
 
     }
 
+    @Override
+    @Async
+    @Transactional
+    public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException {
+        Message message;
+        try {
+            message = convertImageGroupToMessage(chatImageGroupRequest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        message.setId(messageTmp.getId());
+        message.setRoomId(messageTmp.getRoomId());
+        String roomIdConvert = message.getRoomId();
+        try {
+            if (!chatImageGroupRequest.getFilesContent().isEmpty()) {
+                List<FileObject> fileObjects = (List<FileObject>) message.getContent();
+                List<FileObject> fileObjectsNew = new ArrayList<>();
+                List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
+                for (int i = 0; i < files.size() ; i++) {
+                    String filePath = fileUpload.saveFile(files.get(i));
+                    FileObject fileObject = fileObjects.get(i);
+                    fileObject.setFilePath(filePath);
+                    fileObjectsNew.add(fileObject);
+                }
+                message.setContent(fileObjectsNew);
+            }
+            message.setRoomId(roomIdConvert);
+            message.setMessageStatus(MessageStatus.SENT);
+            message.setSendDate(LocalDateTime.now());
+            messageRepository.save(message);
+            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+            for (Room room : rooms) {
+                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                    if(message.getContent() instanceof FileObject) {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    roomService.saveRoom(room);
+                } else {
+                    if(message.getContent() instanceof FileObject) {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(false);
+                    roomService.saveRoom(room);
+                }
+            }
+            UserNotify success = UserNotify.builder()
+                    .status("SUCCESS")
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .message(message)
+                    .build();
+            UserNotify sent = UserNotify.builder()
+                    .status("SENT")
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .message(message)
+                    .build();
+            simpMessagingTemplate.convertAndSendToUser(
+                    message.getSenderId(), "queue/messages",
+                    success
+            );
+            simpMessagingTemplate.convertAndSendToUser(
+                    message.getReceiverId(), "queue/messages",
+                    sent
+            );
+        } catch (Exception e) {
+            log.error("error line 59:  " + e);
+            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+            for (Room room : rooms) {
+                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                    if (message.getContent() instanceof FileObject fileObject) {
+                        room.setLatestMessage(fileObject.getFilename());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    roomService.saveRoom(room);
+                    break;
+                }
+            }
+            UserNotify error = UserNotify.builder()
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .status("ERROR")
+                    .build();
+            message.setMessageStatus(MessageStatus.ERROR);
+            message.setSendDate(LocalDateTime.now());
+            messageRepository.save(message);
+            simpMessagingTemplate.convertAndSendToUser(
+                    message.getSenderId(), "queue/messages",
+                    error
+            );
+        }
+
+
+    }
+
+    public Message convertImageGroupToMessage(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
+        List<FileObject> fileObjects = new ArrayList<>();
+        if(!chatImageGroupRequest.getFilesContent().isEmpty()) {
+            List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
+            for(MultipartFile file : files) {
+                String fileName = file.getOriginalFilename();
+                assert fileName != null;
+                String[] fileExtensions = fileName.split("\\.");
+                String fileRegex = "(\\S+(\\.(?i)(jpg|png|gif|bmp))$)";
+                Pattern pattern = Pattern.compile(fileRegex);
+                Matcher matcher = pattern.matcher(fileName);
+                if(!matcher.matches()) throw new Exception("all files must be image");
+                FileObject fileObject = FileObject.builder()
+                        .filename(fileExtensions[0])
+                        .fileExtension(fileExtensions[fileExtensions.length - 1])
+                        .build();
+                fileObjects.add(fileObject);
+            }
+            return Message.builder()
+                    .senderId(chatImageGroupRequest.getSenderId())
+                    .receiverId(chatImageGroupRequest.getReceiverId())
+                    .messageType(chatImageGroupRequest.getMessageType())
+                    .messageStatus(MessageStatus.SENDING)
+                    .content(fileObjects)
+                    .build();
+        }
+        return null;
+    }
 
     public Message convertToMessage(ChatRequest chatRequest) {
         if(chatRequest.getFileContent() != null) {
             MultipartFile multipartFile = chatRequest.getFileContent();
             String fileName = multipartFile.getOriginalFilename();
+            System.out.println(multipartFile.getSize());
             assert fileName != null;
             String[] fileExtensions = fileName.split("\\.");
             FileObject fileObject = FileObject.builder()

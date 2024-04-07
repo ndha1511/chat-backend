@@ -2,7 +2,9 @@ package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
+import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
+import com.project.chatbackend.requests.RevokeMessageRequest;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.IMessageService;
 import lombok.NonNull;
@@ -60,5 +62,28 @@ public class MessageController {
             return ResponseEntity.badRequest().body("update message fail");
         }
     }
+
+    @PostMapping("/revokeMessage")
+    public ResponseEntity<?> revokeMessage(@RequestBody RevokeMessageRequest revokeMessageRequest) {
+        try {
+            messageService.revokeMessage(revokeMessageRequest.getMessageId(), revokeMessageRequest.getReceiverId());
+            return ResponseEntity.ok("revoke message successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("cannot revoke message");
+        }
+    }
+
+    @PostMapping("/saveImageGroup")
+    public ResponseEntity<?> saveImageGroup(@ModelAttribute ChatImageGroupRequest chatImageGroupRequest) {
+        try {
+            Message message = messageService.saveMessageForImageGroup(chatImageGroupRequest);
+            messageService.saveImageGroupMessage(chatImageGroupRequest, message);
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+
+    }
+
 
 }
