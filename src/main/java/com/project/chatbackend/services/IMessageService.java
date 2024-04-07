@@ -14,4 +14,6 @@ public interface IMessageService {
 
     void updateMessage(String id, ChatRequest chatRequest);
     Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
+    void revokeMessage(String messageId);
+    void forwardMessage(String messageId, String senderId, String receiverId);
 }
