@@ -115,7 +115,7 @@ public class MessageService implements IMessageService {
     public MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest) {
         Page<Message> messagePage = messageRepository.getAllByRoomId(roomId, pageRequest);
 
-        try {
+
             List<Message> messagesSend = messagePage.getContent().stream().filter(msg ->
                     msg.getSenderId().equals(senderId)
             ).toList();
@@ -134,11 +134,7 @@ public class MessageService implements IMessageService {
                     .messages(results)
                     .totalPage(messagePage.getTotalPages())
                     .build();
-        } catch (Exception e) {
-            log.error("error ", e);
 
-            return null;
-        }
     }
 
     @Override
