@@ -180,7 +180,9 @@ public class MessageService implements IMessageService {
 
     @Override
     public Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
+        String roomId = getRoomIdConvert(chatImageGroupRequest.getSenderId(), chatImageGroupRequest.getReceiverId());
         Message message = convertImageGroupToMessage(chatImageGroupRequest);
+        message.setRoomId(roomId);
         return messageRepository.save(message);
     }
 
@@ -207,7 +209,6 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    @Async
     @Transactional
     public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException {
         Message message;
@@ -221,13 +222,10 @@ public class MessageService implements IMessageService {
         String roomIdConvert = message.getRoomId();
         try {
             if (!chatImageGroupRequest.getFilesContent().isEmpty()) {
-                List<FileObject> fileObjects = (List<FileObject>) message.getContent();
                 List<FileObject> fileObjectsNew = new ArrayList<>();
                 List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
-                for (int i = 0; i < files.size() ; i++) {
-                    String filePath = fileUpload.saveFile(files.get(i));
-                    FileObject fileObject = fileObjects.get(i);
-                    fileObject.setFilePath(filePath);
+                for (MultipartFile file : files) {
+                    FileObject fileObject = uploadFile(file);
                     fileObjectsNew.add(fileObject);
                 }
                 message.setContent(fileObjectsNew);

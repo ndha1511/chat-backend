@@ -16,5 +16,4 @@ public class ChatImageGroupRequest {
     private MessageType messageType;
     private MessageStatus messageStatus;
     private List<MultipartFile> filesContent;
-    private boolean hiddenSenderSide;
 }
