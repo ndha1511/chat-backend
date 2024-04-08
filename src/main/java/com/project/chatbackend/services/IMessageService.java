@@ -18,6 +18,6 @@ public interface IMessageService {
     Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception;
     void revokeMessage(String messageId, String receiverId);
     void forwardMessage(String messageId, String senderId, String receiverId);
-    @Async
+
     void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
 }

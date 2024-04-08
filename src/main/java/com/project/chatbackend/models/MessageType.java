@@ -7,5 +7,5 @@ public enum MessageType {
     TEXT,
     VIDEO,
     REPLY,
-    IMAGE_GROUP
+    IMAGE_GROUP,
 }
