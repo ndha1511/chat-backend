@@ -16,20 +16,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class FileController {
     private final S3UploadService s3UploadService;
 
-    @GetMapping("/download/{fileKey}")
-    public ResponseEntity<?> downloadFile(@PathVariable String fileKey) {
-        try {
-            byte[] data = s3UploadService.downloadFile(fileKey);
-            ByteArrayResource resource = new ByteArrayResource(data);
-            return ResponseEntity
-                    .ok()
-                    .contentLength(data.length)
-                    .header("Content-type", "application/octet-stream")
-                    .header("Content-disposition", "attachment; filename=\"" + fileKey + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("download file fail");
-        }
-    }
+//    @GetMapping("/download/{fileKey}")
+//    public ResponseEntity<?> downloadFile(@PathVariable String fileKey) {
+//        try {
+//            byte[] data = s3UploadService.downloadFile(fileKey);
+//            ByteArrayResource resource = new ByteArrayResource(data);
+//            return ResponseEntity
+//                    .ok()
+//                    .contentLength(data.length)
+//                    .header("Content-type", "application/octet-stream")
+//                    .header("Content-disposition", "attachment; filename=\"" + fileKey + "\"")
+//                    .body(resource);
+//        } catch (Exception e) {
+//            return ResponseEntity.badRequest().body("download file fail");
+//        }
+//    }
 
 }

@@ -9,7 +9,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 
 public interface IMessageService {
-    @Async
     void saveMessage(ChatRequest chatRequest, Message messageTmp) throws DataNotFoundException;
     MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest);
 

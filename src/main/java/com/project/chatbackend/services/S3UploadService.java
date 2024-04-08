@@ -1,67 +1,63 @@
 package com.project.chatbackend.services;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.util.IOUtils;
+
+import com.project.chatbackend.models.Message;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+
+
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.NoSuchFileException;
+
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class S3UploadService {
+    @Value("${amazon-properties.access-key}")
+    private String accessKey;
+    @Value("${amazon-properties.secret-key}")
+    private String secretKey;
     @Value("${amazon-properties.bucket-name}")
     private String bucketName;
     @Value("${amazon-properties.region}")
     private String region;
-    private final AmazonS3 s3Client;
+    private final S3UploadAsync s3UploadAsync;
 
-    public Map<String, String> uploadFile(MultipartFile file) throws IOException {
+
+    @Retryable(retryFor = NoSuchFileException.class, maxAttempts = 20, backoff = @Backoff(delay = 100))
+    public void uploadFile(MultipartFile file, Message message) throws IOException {
         log.info("start uploading at " + new Date(System.currentTimeMillis()));
-//        File fileObj = null;
-//        try {
-//            fileObj = convertMultiPartFileToFile(file);
-//            String fileName = System.currentTimeMillis() + "_" + Objects.
-//                    requireNonNull(file.getOriginalFilename())
-//                    .replace(" ", "-");
-//            s3Client.putObject(new PutObjectRequest(bucketName, fileName, fileObj));
-//            fileObj.delete();
-//            log.info("end upload at" + new Date(System.currentTimeMillis()));
-//            Map<String, String> fileInfo = new HashMap<>();
-//            fileInfo.put(fileName, "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName);
-//            return fileInfo;
-//        } catch (Exception io) {
-//            assert fileObj != null;
-//            fileObj.delete();
-//            throw io;
-//        }
+        AwsCredentialsProvider credentialsProvider = () -> AwsBasicCredentials.create(accessKey, secretKey);
         String fileName = file.getOriginalFilename();
         String key = generateUniqueKey(fileName);
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(file.getSize());
-        metadata.setContentType(file.getContentType());
-        metadata.setLastModified(new Date());
-        PutObjectRequest request = new PutObjectRequest(bucketName, key, file.getInputStream(), metadata);
-        s3Client.putObject(request);
+        S3Client s3Client = S3Client.builder().credentialsProvider(credentialsProvider).region(Region.AP_SOUTHEAST_1).build();
+        PutObjectRequest request = PutObjectRequest.builder()
+                        .bucket(bucketName).key(key).build();
+        RequestBody requestBody = RequestBody.fromInputStream(file.getInputStream(),
+                file.getInputStream().available());
 
-        log.info("File uploaded to S3 - Key: {}, Bucket: {}", key, bucketName);
         Map<String, String> fileInfo = new HashMap<>();
         fileInfo.put(key, "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key);
-        return fileInfo;
+        assert fileName != null;
+        s3UploadAsync.uploadToS3(message, request, requestBody, s3Client, fileInfo, fileName);
     }
 
     private String generateUniqueKey(String originalFileName) {
@@ -71,26 +67,5 @@ public class S3UploadService {
     }
 
 
-    public byte[] downloadFile(String fileName) throws IOException {
-        S3Object s3Object = s3Client.getObject(bucketName, fileName);
-        S3ObjectInputStream inputStream = s3Object.getObjectContent();
-        return IOUtils.toByteArray(inputStream);
 
-    }
-
-
-    public String deleteFile(String fileName) {
-        s3Client.deleteObject(bucketName, fileName);
-        return fileName + " removed ...";
-    }
-
-
-//    private File convertMultiPartFileToFile(MultipartFile file) throws IOException {
-//        String tempDir = System.getProperty("java.io.tmpdir");
-//        File convertedFile = new File(tempDir, Objects.requireNonNull(file.getOriginalFilename()));
-//        try (FileOutputStream fos = new FileOutputStream(convertedFile)) {
-//            fos.write(file.getBytes());
-//        }
-//        return convertedFile;
-//    }
 }

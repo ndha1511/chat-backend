@@ -10,20 +10,15 @@ import com.project.chatbackend.responses.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -34,65 +29,65 @@ public class MessageService implements IMessageService {
     private final RoomService roomService;
     private final S3UploadService s3UploadService;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final FileUpload fileUpload;
 
     @Override
-    @Async
     @Transactional
     public void saveMessage(ChatRequest chatRequest, Message messageTmp) {
         Message message = convertToMessage(chatRequest);
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
         String roomIdConvert = message.getRoomId();
+        message.setRoomId(roomIdConvert);
         try {
             if (chatRequest.getFileContent() != null) {
-                FileObject fileObject = uploadFile(chatRequest.getFileContent());
-                message.setContent(fileObject);
-            }
-            message.setRoomId(roomIdConvert);
-            message.setMessageStatus(MessageStatus.SENT);
-            message.setSendDate(LocalDateTime.now());
-            messageRepository.save(message);
-            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
-            for (Room room : rooms) {
-                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                    if(message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(true);
-                    room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
-                } else {
-                    if(message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(false);
-                    roomService.saveRoom(room);
+                s3UploadService.uploadFile(chatRequest.getFileContent(), message);
+            } else {
+                message.setMessageStatus(MessageStatus.SENT);
+                message.setSendDate(LocalDateTime.now());
+                messageRepository.save(message);
+                List<Room> rooms = roomService.findByRoomId(message.getRoomId());
+                for (Room room : rooms) {
+                    if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                        if(message.getContent() instanceof FileObject) {
+                            room.setLatestMessage(message.getMessageType().toString());
+                        } else room.setLatestMessage(message.getContent().toString());
+                        room.setTime(LocalDateTime.now());
+                        room.setSender(true);
+                        room.setNumberOfUnreadMessage(0);
+                        roomService.saveRoom(room);
+                    } else {
+                        if(message.getContent() instanceof FileObject) {
+                            room.setLatestMessage(message.getMessageType().toString());
+                        } else room.setLatestMessage(message.getContent().toString());
+                        room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                        room.setTime(LocalDateTime.now());
+                        room.setSender(false);
+                        roomService.saveRoom(room);
+                    }
                 }
+                UserNotify success = UserNotify.builder()
+                        .status("SUCCESS")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .build();
+                UserNotify sent = UserNotify.builder()
+                        .status("SENT")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getSenderId(), "queue/messages",
+                        success
+                );
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getReceiverId(), "queue/messages",
+                        sent
+                );
             }
-            UserNotify success = UserNotify.builder()
-                    .status("SUCCESS")
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .message(message)
-                    .build();
-            UserNotify sent = UserNotify.builder()
-                    .status("SENT")
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .message(message)
-                    .build();
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getSenderId(), "queue/messages",
-                    success
-            );
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getReceiverId(), "queue/messages",
-                    sent
-            );
+
+
         } catch (Exception e) {
             log.error("error line 59:  " + e);
             List<Room> rooms = roomService.findByRoomId(roomIdConvert);
@@ -108,18 +103,7 @@ public class MessageService implements IMessageService {
                     break;
                 }
             }
-            UserNotify error = UserNotify.builder()
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .status("ERROR")
-                    .build();
-            message.setMessageStatus(MessageStatus.ERROR);
-            message.setSendDate(LocalDateTime.now());
-            messageRepository.save(message);
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getSenderId(), "queue/messages",
-                    error
-            );
+
         }
 
     }
@@ -209,102 +193,107 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    @Transactional
     public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException {
-        Message message;
-        try {
-            message = convertImageGroupToMessage(chatImageGroupRequest);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        message.setId(messageTmp.getId());
-        message.setRoomId(messageTmp.getRoomId());
-        String roomIdConvert = message.getRoomId();
-        try {
-            if (!chatImageGroupRequest.getFilesContent().isEmpty()) {
-                List<FileObject> fileObjectsNew = new ArrayList<>();
-                List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
-                for (MultipartFile file : files) {
-                    FileObject fileObject = uploadFile(file);
-                    fileObjectsNew.add(fileObject);
-                }
-                message.setContent(fileObjectsNew);
-            }
-            message.setRoomId(roomIdConvert);
-            message.setMessageStatus(MessageStatus.SENT);
-            message.setSendDate(LocalDateTime.now());
-            messageRepository.save(message);
-            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
-            for (Room room : rooms) {
-                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                    if(message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(true);
-                    room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
-                } else {
-                    if(message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(false);
-                    roomService.saveRoom(room);
-                }
-            }
-            UserNotify success = UserNotify.builder()
-                    .status("SUCCESS")
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .message(message)
-                    .build();
-            UserNotify sent = UserNotify.builder()
-                    .status("SENT")
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .message(message)
-                    .build();
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getSenderId(), "queue/messages",
-                    success
-            );
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getReceiverId(), "queue/messages",
-                    sent
-            );
-        } catch (Exception e) {
-            log.error("error line 59:  " + e);
-            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
-            for (Room room : rooms) {
-                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                    if (message.getContent() instanceof FileObject fileObject) {
-                        room.setLatestMessage(fileObject.getFilename());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(true);
-                    room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
-                    break;
-                }
-            }
-            UserNotify error = UserNotify.builder()
-                    .senderId(message.getSenderId())
-                    .receiverId(message.getReceiverId())
-                    .status("ERROR")
-                    .build();
-            message.setMessageStatus(MessageStatus.ERROR);
-            message.setSendDate(LocalDateTime.now());
-            messageRepository.save(message);
-            simpMessagingTemplate.convertAndSendToUser(
-                    message.getSenderId(), "queue/messages",
-                    error
-            );
-        }
-
 
     }
+
+//    @Override
+//    @Transactional
+//    public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException {
+//        Message message;
+//        try {
+//            message = convertImageGroupToMessage(chatImageGroupRequest);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//        message.setId(messageTmp.getId());
+//        message.setRoomId(messageTmp.getRoomId());
+//        String roomIdConvert = message.getRoomId();
+//        try {
+//            if (!chatImageGroupRequest.getFilesContent().isEmpty()) {
+//                List<FileObject> fileObjectsNew = new ArrayList<>();
+//                List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
+//                for (MultipartFile file : files) {
+//                    FileObject fileObject = uploadFile(file);
+//                    fileObjectsNew.add(fileObject);
+//                }
+//                message.setContent(fileObjectsNew);
+//            }
+//            message.setRoomId(roomIdConvert);
+//            message.setMessageStatus(MessageStatus.SENT);
+//            message.setSendDate(LocalDateTime.now());
+//            messageRepository.save(message);
+//            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+//            for (Room room : rooms) {
+//                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+//                    if(message.getContent() instanceof FileObject) {
+//                        room.setLatestMessage(message.getMessageType().toString());
+//                    } else room.setLatestMessage(message.getContent().toString());
+//                    room.setTime(LocalDateTime.now());
+//                    room.setSender(true);
+//                    room.setNumberOfUnreadMessage(0);
+//                    roomService.saveRoom(room);
+//                } else {
+//                    if(message.getContent() instanceof FileObject) {
+//                        room.setLatestMessage(message.getMessageType().toString());
+//                    } else room.setLatestMessage(message.getContent().toString());
+//                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+//                    room.setTime(LocalDateTime.now());
+//                    room.setSender(false);
+//                    roomService.saveRoom(room);
+//                }
+//            }
+//            UserNotify success = UserNotify.builder()
+//                    .status("SUCCESS")
+//                    .senderId(message.getSenderId())
+//                    .receiverId(message.getReceiverId())
+//                    .message(message)
+//                    .build();
+//            UserNotify sent = UserNotify.builder()
+//                    .status("SENT")
+//                    .senderId(message.getSenderId())
+//                    .receiverId(message.getReceiverId())
+//                    .message(message)
+//                    .build();
+//            simpMessagingTemplate.convertAndSendToUser(
+//                    message.getSenderId(), "queue/messages",
+//                    success
+//            );
+//            simpMessagingTemplate.convertAndSendToUser(
+//                    message.getReceiverId(), "queue/messages",
+//                    sent
+//            );
+//        } catch (Exception e) {
+//            log.error("error line 59:  " + e);
+//            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+//            for (Room room : rooms) {
+//                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+//                    if (message.getContent() instanceof FileObject fileObject) {
+//                        room.setLatestMessage(fileObject.getFilename());
+//                    } else room.setLatestMessage(message.getContent().toString());
+//                    room.setTime(LocalDateTime.now());
+//                    room.setSender(true);
+//                    room.setNumberOfUnreadMessage(0);
+//                    roomService.saveRoom(room);
+//                    break;
+//                }
+//            }
+//            UserNotify error = UserNotify.builder()
+//                    .senderId(message.getSenderId())
+//                    .receiverId(message.getReceiverId())
+//                    .status("ERROR")
+//                    .build();
+//            message.setMessageStatus(MessageStatus.ERROR);
+//            message.setSendDate(LocalDateTime.now());
+//            messageRepository.save(message);
+//            simpMessagingTemplate.convertAndSendToUser(
+//                    message.getSenderId(), "queue/messages",
+//                    error
+//            );
+//        }
+//
+//
+//    }
 
     public Message convertImageGroupToMessage(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
         List<FileObject> fileObjects = new ArrayList<>();
@@ -364,17 +353,17 @@ public class MessageService implements IMessageService {
     }
 
 
-    public FileObject uploadFile(MultipartFile multipartFile) throws IOException {
-        Map<String, String> fileInfo = s3UploadService.uploadFile(multipartFile);
-        String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
-        String filePath = fileInfo.get(fileKey);
-        String fileName = Objects.requireNonNull(multipartFile.getOriginalFilename()).split("\\.")[0];
-        String[] extension = fileKey.split("\\.");
-        return FileObject.builder()
-                .fileKey(fileKey)
-                .fileExtension(extension[extension.length - 1])
-                .filePath(filePath)
-                .filename(fileName)
-                .build();
-    }
+//    public FileObject uploadFile(MultipartFile multipartFile) throws IOException {
+//        Map<String, String> fileInfo = s3UploadService.uploadFile(multipartFile);
+//        String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
+//        String filePath = fileInfo.get(fileKey);
+//        String fileName = Objects.requireNonNull(multipartFile.getOriginalFilename()).split("\\.")[0];
+//        String[] extension = fileKey.split("\\.");
+//        return FileObject.builder()
+//                .fileKey(fileKey)
+//                .fileExtension(extension[extension.length - 1])
+//                .filePath(filePath)
+//                .filename(fileName)
+//                .build();
+//    }
 }
