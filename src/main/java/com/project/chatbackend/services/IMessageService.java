@@ -8,8 +8,9 @@ import com.project.chatbackend.responses.MessageResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 
+import java.util.List;
+
 public interface IMessageService {
-    @Async
     void saveMessage(ChatRequest chatRequest, Message messageTmp) throws DataNotFoundException;
     MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest);
 
@@ -17,7 +18,7 @@ public interface IMessageService {
     Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
     Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception;
     void revokeMessage(String messageId, String receiverId);
-    void forwardMessage(String messageId, String senderId, String receiverId);
-
+    void forwardMessage(String messageId, String senderId, List<String> receiversId) throws DataNotFoundException;
     void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
+    void seenMessage(String roomId, String senderId, String receiverId);
 }

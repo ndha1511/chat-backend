@@ -11,4 +11,5 @@ import java.util.List;
 public interface MessageRepository extends MongoRepository<Message, String> {
     Page<Message> getAllByRoomId(String roomId, PageRequest pageRequest);
     List<Message> getAllByRoomIdAndMessageStatus(String roomId, MessageStatus messageStatus);
+    Message findTopByOrderBySendDateDesc();
 }

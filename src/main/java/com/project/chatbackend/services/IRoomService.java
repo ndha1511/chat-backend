@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface IRoomService {
     Optional<String> getRoomId(String senderId, String receiverId);
-    void createRoomForGroup(String userId, String groupId);
+    Room createRoomForGroup(String userId, String groupId);
     Page<Room> findAllBySenderId(String senderId, PageRequest pageRequest);
     RoomResponse findBySenderIdAndReceiverId(String senderId, String receiverId) throws Exception;
     List<Room> findByRoomId(String roomId);

@@ -32,14 +32,14 @@ public class RoomService implements IRoomService{
     }
 
     @Override
-    public void createRoomForGroup(String userId, String groupId) {
+    public Room createRoomForGroup(String userId, String groupId) {
         Room room = Room.builder()
                 .roomId(groupId)
                 .senderId(userId)
                 .receiverId(groupId)
                 .roomType(RoomType.GROUP_CHAT)
                 .build();
-        roomRepository.save(room);
+        return roomRepository.save(room);
     }
 
     @Override

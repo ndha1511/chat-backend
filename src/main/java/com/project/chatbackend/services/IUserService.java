@@ -5,6 +5,7 @@ import com.project.chatbackend.models.User;
 import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.LoginResponse;
 import com.project.chatbackend.responses.UserLoginResponse;
+import java.util.List;
 
 
 public interface IUserService {
@@ -22,4 +23,5 @@ public interface IUserService {
     boolean changePassword(ChangePasswordRequest changePasswordRequest);
     boolean resetPassword(ResetPasswordRequest resetPasswordRequest);
     User updateUser(UserUpdateRequest updateUserRequest) throws Exception;
+    List<UserLoginResponse> getFriends(String userId);
 }

@@ -8,4 +8,5 @@ public enum MessageType {
     VIDEO,
     REPLY,
     IMAGE_GROUP,
+    SYSTEM
 }

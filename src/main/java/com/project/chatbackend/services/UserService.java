@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -268,6 +269,26 @@ public class UserService implements IUserService {
         }else {
             throw new DataNotFoundException("user not found");
         }
+    }
+
+    @Override
+    public List<UserLoginResponse> getFriends(String userId) {
+        Optional<User> optionalUser = userRepository.findByEmail(userId);
+        User user = optionalUser.orElseThrow();
+        List<String> listFriends = user.getFriends();
+        return listFriends.stream().map(id -> {
+            userRepository.findByEmail(id);
+            User friend = optionalUser.orElseThrow();
+            return UserLoginResponse.builder()
+                    .email(friend.getEmail())
+                    .dob(String.valueOf(friend.getDateOfBirth()))
+                    .avatar(friend.getAvatar())
+                    .gender(friend.isGender())
+                    .name(friend.getName())
+                    .coverImage(friend.getCoverImage())
+                    .images(friend.getImages())
+                    .build();
+        }).toList();
     }
 
     private boolean isValidPassword(String password, String passwordDb) {
