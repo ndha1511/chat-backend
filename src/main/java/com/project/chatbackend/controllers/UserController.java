@@ -91,4 +91,14 @@ public class UserController {
         }
     }
 
+    @GetMapping("/getFriend")
+    public ResponseEntity<?> getFriend(@RequestParam("email") String userId) {
+        try {
+            return ResponseEntity.ok(userService.getFriends(userId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+    }
+
+
 }

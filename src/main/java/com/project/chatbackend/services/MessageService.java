@@ -3,6 +3,7 @@ package com.project.chatbackend.services;
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.MessageRepository;
+import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.requests.UserNotify;
@@ -15,6 +16,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -25,6 +28,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class MessageService implements IMessageService {
+    private final RoomRepository roomRepository;
     private final MessageRepository messageRepository;
     private final RoomService roomService;
     private final S3UploadService s3UploadService;
@@ -89,7 +93,6 @@ public class MessageService implements IMessageService {
 
 
         } catch (Exception e) {
-            log.error("error line 59:  " + e);
             List<Room> rooms = roomService.findByRoomId(roomIdConvert);
             for (Room room : rooms) {
                 if (Objects.equals(room.getSenderId(), message.getSenderId())) {
@@ -188,14 +191,97 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    public void forwardMessage(String messageId, String senderId, String receiverId) {
+    public void forwardMessage(String messageId, String senderId, List<String> receiversId) throws DataNotFoundException {
+        Optional<Message> optionalMessage = messageRepository.findById(messageId);
+        Message message = optionalMessage.orElseThrow();
+        message.setSenderId(senderId);
+        for (String receiverId: receiversId) {
+            String roomId = getRoomIdConvert(senderId, receiverId);
+            message.setMessageStatus(MessageStatus.SENT);
+            message.setReceiverId(receiverId);
+            message.setSendDate(LocalDateTime.now());
+            message.setRoomId(roomId);
 
+            // update rooms
+            List<Room> rooms = roomRepository.findByRoomId(roomId);
+            for (Room room : rooms) {
+
+                if(!room.getSenderId().equals(senderId)) {
+                    if(message.getContent() instanceof FileObject){
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                    roomService.saveRoom(room);
+                } else {
+                    if(message.getContent() instanceof FileObject){
+                        room.setLatestMessage(message.getMessageType().toString());
+                    } else room.setLatestMessage(message.getContent().toString());
+                    room.setLatestMessage(message.getContent().toString());
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    roomService.saveRoom(room);
+                }
+            }
+            UserNotify success = UserNotify.builder()
+                    .senderId(message.getSenderId())
+                    .receiverId(message.getReceiverId())
+                    .status("SENT")
+                    .build();
+            simpMessagingTemplate.convertAndSendToUser(
+                    message.getReceiverId(), "queue/messages",
+                    success
+            );
+
+        }
+        UserNotify success = UserNotify.builder()
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .status("SUCCESS")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                senderId, "queue/messages",
+                success
+        );
     }
 
     @Override
     public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException {
 
     }
+
+    @Override
+    public void seenMessage(String roomId, String senderId, String receiverId) {
+        List<Message> messagesSent = messageRepository.getAllByRoomIdAndMessageStatus(roomId, MessageStatus.SENT);
+        List<Message> messagesReceiver = messageRepository.getAllByRoomIdAndMessageStatus(roomId, MessageStatus.RECEIVED);
+        for (Message msgSent: messagesSent) {
+           msgSent.setSeenDate(LocalDateTime.now());
+           msgSent.setMessageStatus(MessageStatus.SEEN);
+           messageRepository.save(msgSent);
+        }
+        for(Message msgReceive: messagesReceiver) {
+            msgReceive.setSeenDate(LocalDateTime.now());
+            msgReceive.setMessageStatus(MessageStatus.SEEN);
+            messageRepository.save(msgReceive);
+        }
+        Optional<Room> optionalRoom = roomRepository.findBySenderIdAndReceiverId(senderId, receiverId);
+        Room room = optionalRoom.orElseThrow();
+        room.setNumberOfUnreadMessage(0);
+        roomRepository.save(room);
+        Message latestMessage = messageRepository.findTopByOrderBySendDateDesc();
+        UserNotify seen = UserNotify.builder()
+                .senderId(latestMessage.getSenderId())
+                .receiverId(latestMessage.getReceiverId())
+                .status("SEEN")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                receiverId, "queue/messages",
+                seen
+        );
+    }
+
 
 //    @Override
 //    @Transactional

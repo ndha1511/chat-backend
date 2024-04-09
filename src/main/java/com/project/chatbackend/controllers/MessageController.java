@@ -2,9 +2,8 @@ package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.models.Message;
-import com.project.chatbackend.requests.ChatImageGroupRequest;
-import com.project.chatbackend.requests.ChatRequest;
-import com.project.chatbackend.requests.RevokeMessageRequest;
+import com.project.chatbackend.repositories.MessageRepository;
+import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.IMessageService;
 import lombok.NonNull;
@@ -23,6 +22,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MessageController {
     private final IMessageService messageService;
+
 
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getAllByRoomId(@PathVariable String roomId,
@@ -74,6 +74,21 @@ public class MessageController {
         }
     }
 
+    @PostMapping("/seenMessage")
+    public ResponseEntity<?> seenMessage(@RequestBody SeenMessageRequest seenMessageRequest) {
+        try {
+            messageService.seenMessage(
+                    seenMessageRequest.getRoomId(),
+                    seenMessageRequest.getSenderId(),
+                    seenMessageRequest.getReceiverId()
+            );
+            return ResponseEntity.ok("seen message successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
+
+    }
+
     @PostMapping("/saveImageGroup")
     public ResponseEntity<?> saveImageGroup(@ModelAttribute ChatImageGroupRequest chatImageGroupRequest) {
         try {
@@ -84,6 +99,18 @@ public class MessageController {
             return ResponseEntity.badRequest().body(e);
         }
 
+    }
+
+    @PostMapping("/forwardMessage")
+    public ResponseEntity<?> forwardMessage(@RequestBody ForwardMessageRequest forwardMessageRequest) {
+        try {
+            messageService.forwardMessage(forwardMessageRequest.getMessageId(),
+                    forwardMessageRequest.getSenderId(),
+                    forwardMessageRequest.getReceiversId());
+            return ResponseEntity.ok("forward message successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
+        }
     }
 
 
