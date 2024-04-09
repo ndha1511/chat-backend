@@ -61,6 +61,19 @@ public class S3UploadService {
         return System.currentTimeMillis() + "_" + originalFileName;
     }
 
+    public String uploadFileSync(MultipartFile file) throws IOException {
+        AwsCredentialsProvider credentialsProvider = () -> AwsBasicCredentials.create(accessKey, secretKey);
+        String fileName = file.getOriginalFilename();
+        String key = generateUniqueKey(fileName);
+        S3Client s3Client = S3Client.builder().credentialsProvider(credentialsProvider).region(Region.AP_SOUTHEAST_1).build();
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucketName).key(key).build();
+        RequestBody requestBody = RequestBody.fromInputStream(file.getInputStream(),
+                file.getInputStream().available());
+        s3Client.putObject(request, requestBody);
+        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+    }
+
 
 
 }
