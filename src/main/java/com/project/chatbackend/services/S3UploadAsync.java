@@ -5,7 +5,7 @@ import com.project.chatbackend.models.Message;
 import com.project.chatbackend.models.MessageStatus;
 import com.project.chatbackend.models.Room;
 import com.project.chatbackend.repositories.MessageRepository;
-import com.project.chatbackend.requests.UserNotify;
+import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
