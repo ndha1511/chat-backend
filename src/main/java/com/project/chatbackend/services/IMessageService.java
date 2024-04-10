@@ -1,6 +1,7 @@
 package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
+import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.Message;
 import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
@@ -11,7 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import java.util.List;
 
 public interface IMessageService {
-    void saveMessage(ChatRequest chatRequest, Message messageTmp) throws DataNotFoundException;
+    void saveMessage(ChatRequest chatRequest, Message messageTmp) throws DataNotFoundException, PermissionAccessDenied;
     MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest);
 
     void updateMessage(String id, ChatRequest chatRequest);

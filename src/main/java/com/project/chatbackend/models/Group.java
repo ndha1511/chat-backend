@@ -32,4 +32,8 @@ public class Group {
     private boolean sendMessage;
     @Field(name = "number_of_members")
     private int numberOfMembers;
+    @Field("add_members_permission")
+    private AddMembersPermission addMembersPermission;
+    @Field("send_message_permission")
+    private SendMessagePermission sendMessagePermission;
 }

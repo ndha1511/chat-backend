@@ -1,6 +1,6 @@
 package com.project.chatbackend.controllers;
 
-import com.project.chatbackend.requests.UserNotify;
+import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

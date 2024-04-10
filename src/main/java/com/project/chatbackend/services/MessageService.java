@@ -1,12 +1,14 @@
 package com.project.chatbackend.services;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
+import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.*;
+import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
-import com.project.chatbackend.requests.UserNotify;
+import com.project.chatbackend.responses.UserNotify;
 import com.project.chatbackend.responses.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -28,6 +29,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class MessageService implements IMessageService {
+    private final GroupRepository groupRepository;
     private final RoomRepository roomRepository;
     private final MessageRepository messageRepository;
     private final RoomService roomService;
@@ -36,7 +38,24 @@ public class MessageService implements IMessageService {
 
     @Override
     @Transactional
-    public void saveMessage(ChatRequest chatRequest, Message messageTmp) {
+    public void saveMessage(ChatRequest chatRequest, Message messageTmp) throws PermissionAccessDenied {
+        // kiểm tra xem có phải cuộc trò chuyện nhóm hay không
+        Optional<Group> optionalGroup = groupRepository.findById(chatRequest.getReceiverId());
+        if(optionalGroup.isPresent()) {
+            // kiểm tra quyền của senderId trong nhóm nếu permission là only_admin hoặc only_owner
+            Group group = optionalGroup.get();
+            SendMessagePermission sendMessagePermission = group.getSendMessagePermission();
+            if(sendMessagePermission.equals(SendMessagePermission.ONLY_ADMIN)) {
+                List<String> admins = group.getAdmins();
+                if(!admins.contains(chatRequest.getSenderId()) &&
+                        !group.getOwner().equals(chatRequest.getSenderId()))
+                    throw new PermissionAccessDenied("only admins or owner can send message");
+            }
+            if(sendMessagePermission.equals(SendMessagePermission.ONLY_OWNER)) {
+                if(!group.getOwner().equals(chatRequest.getSenderId()))
+                    throw new PermissionAccessDenied("only owner can send message");
+            }
+        }
         Message message = convertToMessage(chatRequest);
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
