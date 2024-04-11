@@ -33,13 +33,14 @@ public class GroupService implements IGroupService {
     private final RoomRepository roomRepository;
 
     @Override
+    @Transactional
     public Room createGroup(String groupName,
                             String ownerId,
                             String ownerName,
                             List<String> membersId,
                             MultipartFile file) throws IOException, DataNotFoundException {
         String filePath = "";
-        if(file.getSize() > 0) {
+        if(file != null) {
             filePath = s3UploadService.uploadFileSync(file);
         }
         Group group = Group.builder()
