@@ -1,20 +1,16 @@
 package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
+import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.Message;
-import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.IMessageService;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 import java.util.Optional;
 
 @RestController
@@ -51,6 +47,8 @@ public class MessageController {
             return ResponseEntity.ok(messageTmp);
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body("send message fail");
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e);
         }
     }
 

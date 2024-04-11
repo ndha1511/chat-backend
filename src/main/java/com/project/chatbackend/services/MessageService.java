@@ -274,7 +274,9 @@ public class MessageService implements IMessageService {
     @Override
     public void seenMessage(String roomId, String senderId, String receiverId) {
         List<Message> messagesSent = messageRepository.getAllByRoomIdAndMessageStatus(roomId, MessageStatus.SENT);
+        messagesSent = messagesSent.stream().filter(msg -> !msg.getSenderId().equals(senderId)).toList();
         List<Message> messagesReceiver = messageRepository.getAllByRoomIdAndMessageStatus(roomId, MessageStatus.RECEIVED);
+        messagesReceiver = messagesReceiver.stream().filter(msg -> !msg.getSenderId().equals(senderId)).toList();
         for (Message msgSent: messagesSent) {
            msgSent.setSeenDate(LocalDateTime.now());
            msgSent.setMessageStatus(MessageStatus.SEEN);

@@ -33,13 +33,14 @@ public class GroupService implements IGroupService {
     private final RoomRepository roomRepository;
 
     @Override
+    @Transactional
     public Room createGroup(String groupName,
                             String ownerId,
                             String ownerName,
                             List<String> membersId,
                             MultipartFile file) throws IOException, DataNotFoundException {
         String filePath = "";
-        if(file.getSize() > 0) {
+        if(file != null) {
             filePath = s3UploadService.uploadFileSync(file);
         }
         Group group = Group.builder()
@@ -57,6 +58,8 @@ public class GroupService implements IGroupService {
         Message message = Message.builder()
                 .content(ownerName + " đã tạo nhóm")
                 .messageType(MessageType.SYSTEM)
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
                 .sendDate(LocalDateTime.now())
                 .roomId(group.getId())
                 .build();
@@ -67,7 +70,7 @@ public class GroupService implements IGroupService {
             if(!userRepository.existsByEmail(memberId)) throw new DataNotFoundException("member not exists");
             Room room = roomService.createRoomForGroup(memberId, group.getId());
             room.setTime(LocalDateTime.now());
-            room.setSender(true);
+            room.setSender(false);
             room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
             if(room.getSenderId().equals(ownerId)) roomOwner = room;
@@ -120,6 +123,8 @@ public class GroupService implements IGroupService {
                     .content(newMember.getName() + " đã được " + adder.getName() + " thêm vào nhóm")
                     .messageType(MessageType.SYSTEM)
                     .sendDate(LocalDateTime.now())
+                    .senderId("system@gmail.com")
+                    .messageStatus(MessageStatus.SENT)
                     .roomId(group.getId())
                     .build();
             messageRepository.save(message);
@@ -128,7 +133,7 @@ public class GroupService implements IGroupService {
             Room room = roomService.createRoomForGroup(memberId, group.getId());
             room.setLatestMessage(message.getContent().toString());
             room.setTime(LocalDateTime.now());
-            room.setSender(true);
+            room.setSender(false);
             roomRepository.save(room);
 
             // notify for users
@@ -167,6 +172,11 @@ public class GroupService implements IGroupService {
         );
 
 
+    }
+
+    @Override
+    public Group findById(String id) throws DataNotFoundException {
+        return groupRepository.findById(id).orElseThrow(() -> new DataNotFoundException("not found"));
     }
 
     private Group getGroup(String adderId, Optional<Group> optionalGroup) throws PermissionAccessDenied {
