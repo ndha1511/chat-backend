@@ -12,7 +12,10 @@ import java.util.List;
 
 public interface IGroupService {
 
-    Room createGroup(String groupName, String ownerId, String ownerName, List<String> membersId, MultipartFile file) throws IOException, DataNotFoundException;
-    void addMemberToGroup(List<String> membersId, String adderId, String groupId) throws DataNotFoundException, DataExistsException, PermissionAccessDenied;
+    Room createGroup(String groupName, String ownerId, String ownerName, List<String> membersId, MultipartFile file)
+            throws IOException, DataNotFoundException;
+    void addMemberToGroup(List<String> membersId, String adderId, String groupId)
+            throws DataNotFoundException, DataExistsException, PermissionAccessDenied;
+    Group findById(String id) throws DataNotFoundException;
 
 }

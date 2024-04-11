@@ -1,6 +1,7 @@
 package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.DataNotFoundException;
+import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.Message;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.requests.*;
@@ -51,6 +52,8 @@ public class MessageController {
             return ResponseEntity.ok(messageTmp);
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body("send message fail");
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e);
         }
     }
 

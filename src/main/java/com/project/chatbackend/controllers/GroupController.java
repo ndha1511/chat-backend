@@ -41,9 +41,18 @@ public class GroupController {
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body(e);
         } catch (DataExistsException e) {
-            return ResponseEntity.status(405).body("my friend is exist in group");
+            return ResponseEntity.status(405).body(e);
         } catch (PermissionAccessDenied e) {
-            return ResponseEntity.status(406).body("permission access denied");
+            return ResponseEntity.status(406).body(e);
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> findById(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(groupService.findById(id));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e);
         }
     }
 }
