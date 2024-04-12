@@ -8,10 +8,7 @@ import com.project.chatbackend.services.AddFriendService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/friends")
@@ -72,6 +69,15 @@ public class FriendController {
        }
     }
 
+    @PostMapping("/get-friend-request/{email}")
+    public ResponseEntity<?> getFriendRequestPathVariable(@PathVariable String email){
+        try{
+            return ResponseEntity.ok(addFriendService.getRequestAddFriendByReceiverId(email));
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PostMapping("/get-friend-request-by-sender-id")
     public ResponseEntity<?> getFriendRequestBySenderId(@RequestBody String email){
        try{
@@ -79,6 +85,15 @@ public class FriendController {
        }catch (Exception e){
               return ResponseEntity.badRequest().body(e.getMessage());
        }
+    }
+
+    @PostMapping("/get-friend-request-by-sender-id/{email}")
+    public ResponseEntity<?> getFriendRequestBySenderIdPathVariable(@PathVariable String email){
+        try{
+            return ResponseEntity.ok(addFriendService.getRequestAddFriendByReceiverId(email));
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
 

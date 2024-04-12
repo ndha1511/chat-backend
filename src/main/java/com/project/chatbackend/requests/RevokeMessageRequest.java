@@ -7,5 +7,6 @@ import lombok.Data;
 @Builder
 public class RevokeMessageRequest {
     private String messageId;
+    private String senderId;
     private String receiverId;
 }
