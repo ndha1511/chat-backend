@@ -277,8 +277,8 @@ public class UserService implements IUserService {
         User user = optionalUser.orElseThrow();
         List<String> listFriends = user.getFriends();
         return listFriends.stream().map(id -> {
-            userRepository.findByEmail(id);
-            User friend = optionalUser.orElseThrow();
+            Optional<User> optionalFriend = userRepository.findByEmail(id);
+            User friend = optionalFriend.orElseThrow();
             return UserLoginResponse.builder()
                     .email(friend.getEmail())
                     .dob(String.valueOf(friend.getDateOfBirth()))

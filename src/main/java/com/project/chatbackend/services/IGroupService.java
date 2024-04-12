@@ -5,6 +5,7 @@ import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.Group;
 import com.project.chatbackend.models.Room;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,6 +17,10 @@ public interface IGroupService {
             throws IOException, DataNotFoundException;
     void addMemberToGroup(List<String> membersId, String adderId, String groupId)
             throws DataNotFoundException, DataExistsException, PermissionAccessDenied;
+
+    @Transactional
+    void removeMember(String memberId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
+
     Group findById(String id) throws DataNotFoundException;
 
 }

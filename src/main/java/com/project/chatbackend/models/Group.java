@@ -36,4 +36,6 @@ public class Group {
     private AddMembersPermission addMembersPermission;
     @Field("send_message_permission")
     private SendMessagePermission sendMessagePermission;
+    @Field("group_status")
+    private GroupStatus groupStatus;
 }

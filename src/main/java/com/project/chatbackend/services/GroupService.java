@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -66,10 +67,11 @@ public class GroupService implements IGroupService {
         messageRepository.save(message);
         Room roomOwner = null;
         // create room for members
+        LocalDateTime time = LocalDateTime.now();
         for (String memberId: membersId) {
             if(!userRepository.existsByEmail(memberId)) throw new DataNotFoundException("member not exists");
             Room room = roomService.createRoomForGroup(memberId, group.getId());
-            room.setTime(LocalDateTime.now());
+            room.setTime(time);
             room.setSender(false);
             room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
@@ -150,13 +152,13 @@ public class GroupService implements IGroupService {
 
         }
 
-
+        LocalDateTime time = LocalDateTime.now();
         for(String memberInGroup : membersInGroup) {
             // cập nhật chat room của các thành viên đó
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberInGroup, groupId)
                     .orElseThrow();
-            room.setTime(LocalDateTime.now());
+            room.setTime(time);
             assert messageLatest != null;
             room.setLatestMessage(messageLatest.getContent().toString());
             roomRepository.save(room);
@@ -172,6 +174,62 @@ public class GroupService implements IGroupService {
         );
 
 
+    }
+
+    @Override
+    @Transactional
+    public void removeMember(String memberId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
+        // find group
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        List<String> admins = group.getAdmins();
+        AddMembersPermission addMembersPermission = group.getAddMembersPermission();
+        if(addMembersPermission.equals(AddMembersPermission.ONLY_OWNER)) {
+            if(!adminId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to delete member to group");
+        }
+        if(!admins.contains(adminId)) throw new PermissionAccessDenied("only admins or owner have to delete member to group");
+        List<String> members = group.getMembers();
+
+        User memberDelete = userRepository.findByEmail(memberId).orElseThrow(() -> new DateTimeException("member not found"));
+        User admin = userRepository.findByEmail(adminId).orElseThrow(() -> new DateTimeException("member not found"));
+        // save message system
+        Message message = Message.builder()
+                .content(memberDelete.getName() + " đã bị " + admin.getName() + " xóa khỏi nhóm")
+                .messageType(MessageType.SYSTEM)
+                .sendDate(LocalDateTime.now())
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
+                .roomId(group.getId())
+                .build();
+        messageRepository.save(message);
+
+        // update room for members
+        LocalDateTime time = LocalDateTime.now();
+        for(String memberInGroup : members) {
+            // cập nhật chat room của các thành viên đó
+            Room room = roomRepository
+                    .findBySenderIdAndReceiverId(memberInGroup, groupId)
+                    .orElseThrow();
+            room.setTime(time);
+            room.setLatestMessage(message.getContent().toString());
+            roomRepository.save(room);
+
+        }
+
+        // update group
+        members.remove(memberId);
+        group.setMembers(members);
+        group.setUpdatedAt(LocalDateTime.now());
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("REMOVE_MEMBER")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
     }
 
     @Override
