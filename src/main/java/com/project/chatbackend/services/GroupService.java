@@ -44,6 +44,7 @@ public class GroupService implements IGroupService {
         if(file != null) {
             filePath = s3UploadService.uploadFileSync(file);
         }
+        membersId.add(ownerId);
         Group group = Group.builder()
                 .groupName(groupName)
                 .avatar(filePath)
@@ -78,12 +79,12 @@ public class GroupService implements IGroupService {
             if(room.getSenderId().equals(ownerId)) roomOwner = room;
             UserNotify userNotify = UserNotify.builder()
                     .message(message)
-                    .status("CREAT_GROUP")
+                    .status("CREATE_GROUP")
                     .room(room)
                     .build();
             // notify
             simpMessagingTemplate.convertAndSendToUser(
-                    memberId, "queue/message",
+                    memberId, "queue/messages",
                     userNotify
             );
         }
@@ -235,6 +236,31 @@ public class GroupService implements IGroupService {
     @Override
     public Group findById(String id) throws DataNotFoundException {
         return groupRepository.findById(id).orElseThrow(() -> new DataNotFoundException("not found"));
+    }
+
+    @Override
+    public void removeGroup(String ownerId, String groupId) {
+
+    }
+
+    @Override
+    public void addAdmin(String ownerId, String adminId, String groupId) {
+
+    }
+
+    @Override
+    public void removeAdmin(String ownerId, String adminId, String groupId) {
+
+    }
+
+    @Override
+    public void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission) {
+
+    }
+
+    @Override
+    public void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) {
+
     }
 
     private Group getGroup(String adderId, Optional<Group> optionalGroup) throws PermissionAccessDenied {
