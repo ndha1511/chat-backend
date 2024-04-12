@@ -5,7 +5,9 @@ import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.Message;
 import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.MessageResponse;
+import com.project.chatbackend.services.AuthService;
 import com.project.chatbackend.services.IMessageService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,37 +20,40 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MessageController {
     private final IMessageService messageService;
+    private final AuthService authService;
 
 
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getAllByRoomId(@PathVariable String roomId,
                                             @RequestParam String senderId,
                                             @RequestParam Optional<Integer> page,
-                                            @RequestParam Optional<Integer> limit
+                                            @RequestParam Optional<Integer> limit,
+                                            HttpServletRequest request
     ) {
         int pageNum = page.orElse(0);
         int limitNum = limit.orElse(40);
         PageRequest pageRequest = PageRequest.of(pageNum, limitNum,
                 Sort.by("sendDate").descending());
         try {
+            authService.AuthenticationToken(request, senderId);
             MessageResponse messagePage = messageService.getAllByRoomId(senderId,roomId, pageRequest);
-
             return ResponseEntity.ok(messagePage);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("bad request");
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e.getMessage());
         }
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest) {
+    public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest, HttpServletRequest httpServletRequest) {
         try {
+            authService.AuthenticationToken(httpServletRequest, chatRequest.getSenderId());
             Message messageTmp = messageService.saveMessage(chatRequest);
             messageService.saveMessage(chatRequest, messageTmp);
             return ResponseEntity.ok(messageTmp);
         } catch (DataNotFoundException e) {
-            return ResponseEntity.badRequest().body("send message fail");
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (PermissionAccessDenied e) {
-            return ResponseEntity.status(406).body(e);
+            return ResponseEntity.status(406).body(e.getMessage());
         }
     }
 
@@ -63,12 +68,16 @@ public class MessageController {
     }
 
     @PostMapping("/revokeMessage")
-    public ResponseEntity<?> revokeMessage(@RequestBody RevokeMessageRequest revokeMessageRequest) {
+    public ResponseEntity<?> revokeMessage(@RequestBody RevokeMessageRequest revokeMessageRequest,
+                                           HttpServletRequest httpServletRequest) {
         try {
-            messageService.revokeMessage(revokeMessageRequest.getMessageId(), revokeMessageRequest.getReceiverId());
+            authService.AuthenticationToken(httpServletRequest, revokeMessageRequest.getSenderId());
+            messageService.revokeMessage(revokeMessageRequest.getMessageId(),
+                    revokeMessageRequest.getSenderId(),
+                    revokeMessageRequest.getReceiverId());
             return ResponseEntity.ok("revoke message successfully");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("cannot revoke message");
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e.getMessage());
         }
     }
 

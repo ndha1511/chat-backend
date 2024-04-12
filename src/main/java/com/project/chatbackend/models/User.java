@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "users")
@@ -26,7 +27,7 @@ public class User {
     private String email;
     private String password;
     private String avatar;
-    private List<String> friends;
+    private List<String> friends = new ArrayList<>();
     @Field(name = "created_at")
     private LocalDateTime createdAt;
     @Field(name = "updated_at")

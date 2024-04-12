@@ -16,9 +16,9 @@ public interface IMessageService {
     MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest);
 
     void updateMessage(String id, ChatRequest chatRequest);
-    Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException;
+    Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException, PermissionAccessDenied;
     Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception;
-    void revokeMessage(String messageId, String receiverId);
+    void revokeMessage(String messageId, String senderId, String receiverId) throws PermissionAccessDenied;
     void forwardMessage(String messageId, String senderId, List<String> receiversId) throws DataNotFoundException;
     void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
     void seenMessage(String roomId, String senderId, String receiverId);
