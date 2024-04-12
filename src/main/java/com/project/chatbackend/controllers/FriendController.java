@@ -96,6 +96,15 @@ public class FriendController {
         }
     }
 
+    @PostMapping("/get-friends/{email}")
+    public ResponseEntity<?> getFriends(@PathVariable String email){
+        try{
+            return ResponseEntity.ok(addFriendService.getFriendList(email));
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 
 
 }
