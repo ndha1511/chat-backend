@@ -1,9 +1,12 @@
 package com.project.chatbackend.controllers;
 
+import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.requests.ChangePasswordRequest;
 import com.project.chatbackend.requests.UserUpdateRequest;
 import com.project.chatbackend.responses.UserLoginResponse;
+import com.project.chatbackend.services.AuthService;
 import com.project.chatbackend.services.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -18,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final AuthService authService;
 
     @GetMapping("/{phoneNumber}")
     public ResponseEntity<?> findByPhoneNumber(@PathVariable String phoneNumber) {
@@ -92,11 +96,13 @@ public class UserController {
     }
 
     @GetMapping("/getFriend")
-    public ResponseEntity<?> getFriend(@RequestParam("email") String userId) {
+    public ResponseEntity<?> getFriend(@RequestParam("email") String userId,
+                                       HttpServletRequest httpServletRequest) {
         try {
+            authService.AuthenticationToken(httpServletRequest, userId);
             return ResponseEntity.ok(userService.getFriends(userId));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e);
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e.getMessage());
         }
     }
 

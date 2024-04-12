@@ -55,7 +55,7 @@ public class MessageService implements IMessageService {
                 List<Room> rooms = roomService.findByRoomId(message.getRoomId());
                 for (Room room : rooms) {
                     if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                        if(message.getContent() instanceof FileObject) {
+                        if (message.getContent() instanceof FileObject) {
                             room.setLatestMessage(message.getMessageType().toString());
                         } else room.setLatestMessage(message.getContent().toString());
                         room.setTime(LocalDateTime.now());
@@ -63,7 +63,7 @@ public class MessageService implements IMessageService {
                         room.setNumberOfUnreadMessage(0);
                         roomService.saveRoom(room);
                     } else {
-                        if(message.getContent() instanceof FileObject) {
+                        if (message.getContent() instanceof FileObject) {
                             room.setLatestMessage(message.getMessageType().toString());
                         } else room.setLatestMessage(message.getContent().toString());
                         room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
@@ -120,28 +120,44 @@ public class MessageService implements IMessageService {
     }
 
 
-
     @Override
     public MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest) {
-            Page<Message> messagePage = messageRepository.getAllByRoomId(roomId, pageRequest);
-            List<Message> messagesSend = messagePage.getContent().stream().filter(msg ->
-                    msg.getSenderId().equals(senderId)
-            ).toList();
-            List<Message> messagesReceive = messagePage.getContent().stream().filter(msg ->
-                    !msg.getSenderId().equals(senderId)
-            ).toList();
-            List<Message> messagesFilter = messagesReceive.stream().filter(msg ->
-                    !msg.getMessageStatus().equals(MessageStatus.SENDING) &&
-                            !msg.getMessageStatus().equals(MessageStatus.ERROR)
-            ).toList();
-            List<Message> results = Stream
-                    .concat(messagesSend.stream(), messagesFilter.stream())
-                    .sorted(Comparator.comparing(Message::getSendDate))
-                    .toList();
-            return MessageResponse.builder()
-                    .messages(results)
-                    .totalPage(messagePage.getTotalPages())
-                    .build();
+        Optional<Group> group = groupRepository.findById(roomId);
+        Page<Message> messagePage = messageRepository.getAllByRoomId(roomId, pageRequest);
+        // kiểm tra trong trường hợp room này là group_chat
+        if (group.isPresent()) {
+            List<String> members = group.get().getMembers();
+            // nếu user không có trong group hoặc group inactive thì chỉ trả về các tin nhắn hệ thống
+            if (!members.contains(senderId)) {
+                List<Message> messagesSystem = messagePage.getContent()
+                        .stream()
+                        .filter(msg -> msg.getMessageType().equals(MessageType.SYSTEM))
+                        .toList();
+                return MessageResponse.builder()
+                        .messages(messagesSystem)
+                        .totalPage(0)
+                        .build();
+            }
+        }
+
+        List<Message> messagesSend = messagePage.getContent().stream().filter(msg ->
+                msg.getSenderId().equals(senderId)
+        ).toList();
+        List<Message> messagesReceive = messagePage.getContent().stream().filter(msg ->
+                !msg.getSenderId().equals(senderId)
+        ).toList();
+        List<Message> messagesFilter = messagesReceive.stream().filter(msg ->
+                !msg.getMessageStatus().equals(MessageStatus.SENDING) &&
+                        !msg.getMessageStatus().equals(MessageStatus.ERROR)
+        ).toList();
+        List<Message> results = Stream
+                .concat(messagesSend.stream(), messagesFilter.stream())
+                .sorted(Comparator.comparing(Message::getSendDate))
+                .toList();
+        return MessageResponse.builder()
+                .messages(results)
+                .totalPage(messagePage.getTotalPages())
+                .build();
 
     }
 
@@ -162,7 +178,7 @@ public class MessageService implements IMessageService {
         String roomId = getRoomIdConvert(chatRequest.getSenderId(), chatRequest.getReceiverId());
         Room room = roomRepository.findBySenderIdAndReceiverId(chatRequest.getSenderId(),
                 chatRequest.getReceiverId()).orElseThrow(() -> new DataNotFoundException("room not found"));
-        if(room.getRoomType().equals(RoomType.GROUP_CHAT)) {
+        if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
             checkPermissionInChatGroup(chatRequest);
         }
         Message message = convertToMessage(chatRequest);
@@ -174,28 +190,29 @@ public class MessageService implements IMessageService {
     private void checkPermissionInChatGroup(ChatRequest chatRequest) throws PermissionAccessDenied {
         // kiểm tra xem có phải cuộc trò chuyện nhóm hay không
         Optional<Group> optionalGroup = groupRepository.findById(chatRequest.getReceiverId());
-        if(optionalGroup.isPresent()) {
+        if (optionalGroup.isPresent()) {
 
             Group group = optionalGroup.get();
             // kiểm tra user có trong group hay không
             List<String> members = group.getMembers();
-            if(!members.contains(chatRequest.getSenderId()))
+            if (!members.contains(chatRequest.getSenderId()))
                 throw new PermissionAccessDenied("user is not in group");
 
             // kiểm tra quyền của senderId trong nhóm nếu permission là only_admin hoặc only_owner
             SendMessagePermission sendMessagePermission = group.getSendMessagePermission();
-            if(sendMessagePermission.equals(SendMessagePermission.ONLY_ADMIN)) {
+            if (sendMessagePermission.equals(SendMessagePermission.ONLY_ADMIN)) {
                 List<String> admins = group.getAdmins();
-                if(!admins.contains(chatRequest.getSenderId()) &&
+                if (!admins.contains(chatRequest.getSenderId()) &&
                         !group.getOwner().equals(chatRequest.getSenderId()))
                     throw new PermissionAccessDenied("only admins or owner can send message");
             }
-            if(sendMessagePermission.equals(SendMessagePermission.ONLY_OWNER)) {
-                if(!group.getOwner().equals(chatRequest.getSenderId()))
+            if (sendMessagePermission.equals(SendMessagePermission.ONLY_OWNER)) {
+                if (!group.getOwner().equals(chatRequest.getSenderId()))
                     throw new PermissionAccessDenied("only owner can send message");
             }
         }
     }
+
     @Override
     public Message saveMessageForImageGroup(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
         String roomId = getRoomIdConvert(chatImageGroupRequest.getSenderId(), chatImageGroupRequest.getReceiverId());
@@ -209,7 +226,7 @@ public class MessageService implements IMessageService {
         Optional<Message> optionalMessage = messageRepository.findById(messageId);
         // kiểm tra user có đúng là người gửi hay không
         Message message = optionalMessage.orElseThrow();
-        if(!message.getSenderId().equals(senderId))
+        if (!message.getSenderId().equals(senderId))
             throw new PermissionAccessDenied("permission access denied");
         message.setMessageStatus(MessageStatus.REVOKED);
         messageRepository.save(message);
@@ -229,7 +246,7 @@ public class MessageService implements IMessageService {
         Optional<Message> optionalMessage = messageRepository.findById(messageId);
         Message message = optionalMessage.orElseThrow();
         message.setSenderId(senderId);
-        for (String receiverId: receiversId) {
+        for (String receiverId : receiversId) {
             String roomId = getRoomIdConvert(senderId, receiverId);
             message.setMessageStatus(MessageStatus.SENT);
             message.setReceiverId(receiverId);
@@ -240,8 +257,8 @@ public class MessageService implements IMessageService {
             List<Room> rooms = roomRepository.findByRoomId(roomId);
             for (Room room : rooms) {
 
-                if(!room.getSenderId().equals(senderId)) {
-                    if(message.getContent() instanceof FileObject){
+                if (!room.getSenderId().equals(senderId)) {
+                    if (message.getContent() instanceof FileObject) {
                         room.setLatestMessage(message.getMessageType().toString());
                     } else room.setLatestMessage(message.getContent().toString());
                     room.setTime(LocalDateTime.now());
@@ -249,7 +266,7 @@ public class MessageService implements IMessageService {
                     room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
                     roomService.saveRoom(room);
                 } else {
-                    if(message.getContent() instanceof FileObject){
+                    if (message.getContent() instanceof FileObject) {
                         room.setLatestMessage(message.getMessageType().toString());
                     } else room.setLatestMessage(message.getContent().toString());
                     room.setLatestMessage(message.getContent().toString());
@@ -292,12 +309,12 @@ public class MessageService implements IMessageService {
         messagesSent = messagesSent.stream().filter(msg -> !msg.getSenderId().equals(senderId)).toList();
         List<Message> messagesReceiver = messageRepository.getAllByRoomIdAndMessageStatus(roomId, MessageStatus.RECEIVED);
         messagesReceiver = messagesReceiver.stream().filter(msg -> !msg.getSenderId().equals(senderId)).toList();
-        for (Message msgSent: messagesSent) {
-           msgSent.setSeenDate(LocalDateTime.now());
-           msgSent.setMessageStatus(MessageStatus.SEEN);
-           messageRepository.save(msgSent);
+        for (Message msgSent : messagesSent) {
+            msgSent.setSeenDate(LocalDateTime.now());
+            msgSent.setMessageStatus(MessageStatus.SEEN);
+            messageRepository.save(msgSent);
         }
-        for(Message msgReceive: messagesReceiver) {
+        for (Message msgReceive : messagesReceiver) {
             msgReceive.setSeenDate(LocalDateTime.now());
             msgReceive.setMessageStatus(MessageStatus.SEEN);
             messageRepository.save(msgReceive);
@@ -419,16 +436,16 @@ public class MessageService implements IMessageService {
 
     public Message convertImageGroupToMessage(ChatImageGroupRequest chatImageGroupRequest) throws Exception {
         List<FileObject> fileObjects = new ArrayList<>();
-        if(!chatImageGroupRequest.getFilesContent().isEmpty()) {
+        if (!chatImageGroupRequest.getFilesContent().isEmpty()) {
             List<MultipartFile> files = chatImageGroupRequest.getFilesContent();
-            for(MultipartFile file : files) {
+            for (MultipartFile file : files) {
                 String fileName = file.getOriginalFilename();
                 assert fileName != null;
                 String[] fileExtensions = fileName.split("\\.");
                 String fileRegex = "(\\S+(\\.(?i)(jpg|png|gif|bmp))$)";
                 Pattern pattern = Pattern.compile(fileRegex);
                 Matcher matcher = pattern.matcher(fileName);
-                if(!matcher.matches()) throw new Exception("all files must be image");
+                if (!matcher.matches()) throw new Exception("all files must be image");
                 FileObject fileObject = FileObject.builder()
                         .filename(fileExtensions[0])
                         .fileExtension(fileExtensions[fileExtensions.length - 1])
@@ -447,7 +464,7 @@ public class MessageService implements IMessageService {
     }
 
     public Message convertToMessage(ChatRequest chatRequest) {
-        if(chatRequest.getFileContent() != null) {
+        if (chatRequest.getFileContent() != null) {
             MultipartFile multipartFile = chatRequest.getFileContent();
             String fileName = multipartFile.getOriginalFilename();
             System.out.println(multipartFile.getSize());

@@ -5,6 +5,7 @@ import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.requests.AddMemberRequest;
 import com.project.chatbackend.requests.CreateGroupRequest;
+import com.project.chatbackend.services.AuthService;
 import com.project.chatbackend.services.IGroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class GroupController {
     private final IGroupService groupService;
+    private AuthService authService;
 
     @PostMapping()
     public ResponseEntity<?> createGroup(@ModelAttribute CreateGroupRequest createGroupRequest) {
