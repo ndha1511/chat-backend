@@ -1,10 +1,9 @@
 package com.project.chatbackend.services;
 
-import com.project.chatbackend.models.FileObject;
-import com.project.chatbackend.models.Message;
-import com.project.chatbackend.models.MessageStatus;
-import com.project.chatbackend.models.Room;
+import com.project.chatbackend.models.*;
+import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
+import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,11 +28,14 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @Slf4j
 public class S3UploadAsync {
+    private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
     @Value("${amazon-properties.bucket-name}")
     private String bucketName;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final RoomService roomService;
     private final MessageRepository messageRepository;
+
 
     @Async
     public void uploadToS3(Message message,
@@ -59,7 +61,8 @@ public class S3UploadAsync {
         waiterResponse.matched().response().ifPresent(x -> log.info("File uploaded to S3 - Key: {}, Bucket: {}", fileKey, bucketName));
         message.setContent(fileObject);
         message.setMessageStatus(MessageStatus.SENT);
-        message.setSendDate(LocalDateTime.now());
+        LocalDateTime time = LocalDateTime.now();
+        message.setSendDate(time);
         messageRepository.save(message);
         List<Room> rooms = roomService.findByRoomId(message.getRoomId());
         for (Room room : rooms) {
@@ -67,16 +70,27 @@ public class S3UploadAsync {
                 if(message.getContent() instanceof FileObject) {
                     room.setLatestMessage(message.getMessageType().toString());
                 } else room.setLatestMessage(message.getContent().toString());
-                room.setTime(LocalDateTime.now());
+                room.setTime(time);
                 room.setSender(true);
                 room.setNumberOfUnreadMessage(0);
                 roomService.saveRoom(room);
             } else {
-                if(message.getContent() instanceof FileObject) {
-                    room.setLatestMessage(message.getMessageType().toString());
-                } else room.setLatestMessage(message.getContent().toString());
+                User user = userRepository.findByEmail(message.getSenderId()).orElseThrow();
+                if (message.getContent() instanceof FileObject) {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(user.getName() + ": " +message.getMessageType().toString());
+                    } else {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    }
+
+                } else {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(user.getName() + ": " + message.getContent().toString());
+                    } else
+                        room.setLatestMessage(message.getContent().toString());
+                }
                 room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                room.setTime(LocalDateTime.now());
+                room.setTime(time);
                 room.setSender(false);
                 roomService.saveRoom(room);
             }
@@ -101,5 +115,9 @@ public class S3UploadAsync {
                 message.getReceiverId(), "queue/messages",
                 sent
         );
+    }
+
+    private boolean isGroupChat(String roomId) {
+        return groupRepository.findById(roomId).isPresent();
     }
 }

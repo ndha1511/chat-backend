@@ -30,4 +30,9 @@ public class Room {
     private int numberOfUnreadMessage;
     private LocalDateTime time;
     private boolean sender;
+    @Field(name = "created_at")
+    private LocalDateTime createdAt;
+    @Field(name = "deleted_at")
+    private LocalDateTime deletedAt;
+    private RoomStatus roomStatus;
 }
