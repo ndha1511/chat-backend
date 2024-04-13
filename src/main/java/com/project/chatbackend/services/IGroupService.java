@@ -19,11 +19,13 @@ public interface IGroupService {
             throws DataNotFoundException, DataExistsException, PermissionAccessDenied;
     void removeMember(String memberId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
     Group findById(String id) throws DataNotFoundException;
-    void removeGroup(String ownerId, String groupId);
-    void addAdmin(String ownerId, String adminId, String groupId);
-    void removeAdmin(String ownerId, String adminId, String groupId);
-    void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission);
-    void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission);
+    void removeGroup(String ownerId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
+    void addAdmin(String ownerId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied, DataExistsException;
+    void removeAdmin(String ownerId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
+    void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission) throws DataNotFoundException, PermissionAccessDenied;
+    void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) throws DataNotFoundException, PermissionAccessDenied;
+    void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
+
 
 
 }
