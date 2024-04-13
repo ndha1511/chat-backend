@@ -70,6 +70,18 @@ public class GroupController {
 
     }
 
+    @GetMapping()
+    public ResponseEntity<?> getAllBySenderId(@RequestParam String senderId,
+                                              HttpServletRequest httpServletRequest) {
+        try {
+            authService.AuthenticationToken(httpServletRequest, senderId);
+            return ResponseEntity.ok(groupService.findAllBySenderId(senderId));
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e.getMessage());
+        }
+    }
+
+
     @DeleteMapping("/remove")
     public ResponseEntity<?> removeGroup(@RequestBody GroupActionRequest groupActionRequest,
                                          HttpServletRequest httpServletRequest) {

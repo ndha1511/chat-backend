@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface RoomRepository extends MongoRepository<Room, String> {
     Page<Room> findAllBySenderId(String senderId, PageRequest pageRequest);
+    List<Room> findAllBySenderId(String senderId);
     Optional<Room> findBySenderIdAndReceiverId(String senderId, String receiverId);
     List<Room> findByRoomId(String roomId);
 }

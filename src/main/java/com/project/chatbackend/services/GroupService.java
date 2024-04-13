@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -51,6 +52,7 @@ public class GroupService implements IGroupService {
                 .members(membersId)
                 .owner(ownerId)
                 .createdAt(LocalDateTime.now())
+                .groupStatus(GroupStatus.ACTIVE)
                 .sendMessagePermission(SendMessagePermission.PUBLIC)
                 .addMembersPermission(AddMembersPermission.PUBLIC)
                 .numberOfMembers(membersId.size())
@@ -167,7 +169,7 @@ public class GroupService implements IGroupService {
         }
         // thông báo đến các thành viên còn lại trong group
         UserNotify userNotify = UserNotify.builder()
-                .status("ADD_MEMBER")
+                .status("ADD_MEMBER_GROUP")
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
                 groupId, "queue/message",
@@ -182,14 +184,16 @@ public class GroupService implements IGroupService {
     public void removeMember(String memberId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
         // find group
         Optional<Group> optionalGroup = groupRepository.findById(groupId);
-        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        if (optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
         Group group = optionalGroup.get();
         List<String> admins = group.getAdmins();
         AddMembersPermission addMembersPermission = group.getAddMembersPermission();
-        if(addMembersPermission.equals(AddMembersPermission.ONLY_OWNER)) {
-            if(!adminId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to delete member to group");
+        if (addMembersPermission.equals(AddMembersPermission.ONLY_OWNER)) {
+            if (!adminId.equals(group.getOwner()))
+                throw new PermissionAccessDenied("only owner have to delete member to group");
         }
-        if(!admins.contains(adminId) && !group.getOwner().equals(adminId)) throw new PermissionAccessDenied("only admins or owner have to delete member to group");
+        if (!admins.contains(adminId) && !group.getOwner().equals(adminId))
+            throw new PermissionAccessDenied("only admins or owner have to delete member to group");
         List<String> members = group.getMembers();
 
         User memberDelete = userRepository.findByEmail(memberId).orElseThrow(() -> new DateTimeException("member not found"));
@@ -207,7 +211,8 @@ public class GroupService implements IGroupService {
 
         // update room for members
         LocalDateTime time = LocalDateTime.now();
-        for(String memberInGroup : members) {
+        Room roomRemove = null;
+        for (String memberInGroup : members) {
             // cập nhật chat room của các thành có trong nhóm
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberInGroup, groupId)
@@ -215,6 +220,12 @@ public class GroupService implements IGroupService {
             room.setTime(time);
             room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
+            if(memberDelete.getEmail().equals(memberInGroup)) {
+                roomRemove = room;
+                roomRemove.setRoomStatus(RoomStatus.INACTIVE);
+                roomRepository.save(room);
+            }
+
 
         }
 
@@ -225,9 +236,18 @@ public class GroupService implements IGroupService {
         group.setUpdatedAt(LocalDateTime.now());
         groupRepository.save(group);
 
+        // notify to user remove
+        UserNotify userNotifyUser = UserNotify.builder()
+                .status("REMOVE_MEMBER")
+                .room(roomRemove)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                memberId, "/queue/messages", userNotifyUser
+        );
+
         // notify to group
         UserNotify userNotify = UserNotify.builder()
-                .status("REMOVE_MEMBER")
+                .status("REMOVE_MEMBER_GROUP")
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
                 groupId, "/queue/messages", userNotify
@@ -259,6 +279,7 @@ public class GroupService implements IGroupService {
         List<String> members = group.getMembers();
 
         LocalDateTime time = LocalDateTime.now();
+        Room roomLatest = null;
         for (String memberId: members) {
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberId, groupId)
@@ -266,7 +287,9 @@ public class GroupService implements IGroupService {
             room.setTime(time);
             room.setLatestMessage(message.getContent().toString());
             room.setNumberOfUnreadMessage(0);
+            room.setRoomStatus(RoomStatus.INACTIVE);
             roomRepository.save(room);
+            roomLatest = room;
         }
 
         // update group
@@ -276,6 +299,7 @@ public class GroupService implements IGroupService {
         // notify to group
         UserNotify userNotify = UserNotify.builder()
                 .status("REMOVE_GROUP")
+                .room(roomLatest)
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
                 groupId, "/queue/messages", userNotify
@@ -452,7 +476,7 @@ public class GroupService implements IGroupService {
                 .roomId(group.getId())
                 .build();
         messageRepository.save(message);
-
+        Room roomLeave = null;
         // update room for members
         for (String memberGroupId: members) {
             Room room = roomRepository
@@ -463,6 +487,7 @@ public class GroupService implements IGroupService {
                 room.setLatestMessage("Bạn đã rời nhóm");
                 room.setNumberOfUnreadMessage(0);
                 room.setSender(false);
+                roomLeave = room;
             } else {
                 room.setLatestMessage(message.getContent().toString());
             }
@@ -474,6 +499,15 @@ public class GroupService implements IGroupService {
 
         groupRepository.save(group);
 
+        // notify cho chính mình
+        UserNotify userNotifyMain = UserNotify.builder()
+                .status("LEAVE")
+                .room(roomLeave)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                memberId, "/queue/messages", userNotifyMain
+        );
+
         // notify to group
         UserNotify userNotify = UserNotify.builder()
                 .status("MEMBER_LEAVE")
@@ -484,6 +518,22 @@ public class GroupService implements IGroupService {
 
 
 
+    }
+
+    @Override
+    public List<Group> findAllBySenderId(String senderId) {
+        List<Room> rooms = roomRepository.findAllBySenderId(senderId);
+        List<Group> groups = new ArrayList<>();
+        for(Room room: rooms) {
+            if(room.getRoomStatus().equals(RoomStatus.ACTIVE)) {
+                Optional<Group> optionalGroup = groupRepository.findById(room.getRoomId());
+                if(optionalGroup.isEmpty()) continue;
+                Group group = optionalGroup.get();
+                if(!group.getMembers().contains(senderId)) continue;
+                groups.add(group);
+            }
+        }
+        return groups;
     }
 
     private Group getGroup(String adderId, Optional<Group> optionalGroup) throws PermissionAccessDenied {
