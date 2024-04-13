@@ -186,6 +186,16 @@ public class GroupController {
 
     }
 
+    @GetMapping("/members/{groupId}")
+    public ResponseEntity<?> getMemberInGroup(@PathVariable String groupId) {
+        try {
+            return ResponseEntity.ok(groupService.getMemberInGroup(groupId));
+        } catch (DataNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+
 
     @GetMapping("/{id}")
     public ResponseEntity<?> findById(@PathVariable String id) {

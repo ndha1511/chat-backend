@@ -77,6 +77,7 @@ public class RoomService implements IRoomService{
                     .numberOfUnreadMessage(room.getNumberOfUnreadMessage())
                     .avatar(userLoginResponse.getAvatar())
                     .sender(room.isSender())
+                    .roomStatus(room.getRoomStatus())
                     .roomType(room.getRoomType())
                     .name(userLoginResponse.getName())
                     .build();
@@ -93,6 +94,7 @@ public class RoomService implements IRoomService{
                     .numberOfUnreadMessage(room.getNumberOfUnreadMessage())
                     .avatar(group.getAvatar())
                     .sender(room.isSender())
+                    .roomStatus(room.getRoomStatus())
                     .roomType(room.getRoomType())
                     .name(group.getGroupName())
                     .build();

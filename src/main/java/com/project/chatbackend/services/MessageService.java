@@ -147,13 +147,19 @@ public class MessageService implements IMessageService {
         if (group.isPresent()) {
             List<String> members = group.get().getMembers();
             // nếu user không có trong group hoặc group inactive thì chỉ trả về các tin nhắn hệ thống
-            if (!members.contains(senderId)) {
+            if (group.get().getGroupStatus().equals(GroupStatus.INACTIVE)) {
                 List<Message> messagesSystem = messagePage.getContent()
                         .stream()
                         .filter(msg -> msg.getMessageType().equals(MessageType.SYSTEM))
                         .toList();
                 return MessageResponse.builder()
                         .messages(messagesSystem)
+                        .totalPage(0)
+                        .build();
+            }
+            if(!members.contains(senderId)) {
+                return MessageResponse.builder()
+                        .messages(new ArrayList<>())
                         .totalPage(0)
                         .build();
             }

@@ -2,6 +2,7 @@ package com.project.chatbackend.responses;
 
 import com.project.chatbackend.models.Group;
 import com.project.chatbackend.models.Room;
+import com.project.chatbackend.models.RoomStatus;
 import com.project.chatbackend.models.RoomType;
 import lombok.Builder;
 import lombok.Data;
@@ -22,4 +23,5 @@ public class RoomResponse {
     private LocalDateTime time;
     private String latestMessage;
     private String avatar;
+    private RoomStatus roomStatus;
 }
