@@ -7,7 +7,6 @@ import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.MessageResponse;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 

@@ -42,4 +42,8 @@ public class Message {
     private MessageStatus messageStatus;
     @Field(name = "hidden_sender_side")
     private boolean hiddenSenderSide;
+    @Field(name = "sender_avatar")
+    private String senderAvatar;
+    @Field(name = "sender_name")
+    private String senderName;
 }

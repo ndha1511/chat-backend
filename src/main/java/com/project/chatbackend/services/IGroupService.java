@@ -25,6 +25,7 @@ public interface IGroupService {
     void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission) throws DataNotFoundException, PermissionAccessDenied;
     void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) throws DataNotFoundException, PermissionAccessDenied;
     void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
+    List<Group> findAllBySenderId(String senderId);
 
 
 

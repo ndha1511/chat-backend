@@ -43,6 +43,8 @@ public class MessageController {
         }
     }
 
+
+
     @PostMapping("/chat")
     public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest, HttpServletRequest httpServletRequest) {
         try {

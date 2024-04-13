@@ -47,6 +47,9 @@ public class MessageService implements IMessageService {
         message.setRoomId(messageTmp.getRoomId());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
+        User user = userRepository.findByEmail(chatRequest.getSenderId()).orElseThrow();
+        message.setSenderName(user.getName());
+        message.setSenderAvatar(user.getAvatar());
         try {
             if (chatRequest.getFileContent() != null) {
                 s3UploadService.uploadFile(chatRequest.getFileContent(), message);
@@ -66,7 +69,6 @@ public class MessageService implements IMessageService {
                         room.setNumberOfUnreadMessage(0);
                         roomService.saveRoom(room);
                     } else {
-                        User user = userRepository.findByEmail(message.getSenderId()).orElseThrow();
                         if (message.getContent() instanceof FileObject) {
                             if(isGroupChat(room.getRoomId())) {
                                 room.setLatestMessage(user.getName() + ": " +message.getMessageType().toString());
@@ -177,6 +179,8 @@ public class MessageService implements IMessageService {
                 .build();
 
     }
+
+
 
     @Override
     public void updateMessage(String id, ChatRequest chatRequest) {
