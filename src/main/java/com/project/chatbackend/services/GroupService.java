@@ -189,7 +189,7 @@ public class GroupService implements IGroupService {
         if(addMembersPermission.equals(AddMembersPermission.ONLY_OWNER)) {
             if(!adminId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to delete member to group");
         }
-        if(!admins.contains(adminId)) throw new PermissionAccessDenied("only admins or owner have to delete member to group");
+        if(!admins.contains(adminId) && !group.getOwner().equals(adminId)) throw new PermissionAccessDenied("only admins or owner have to delete member to group");
         List<String> members = group.getMembers();
 
         User memberDelete = userRepository.findByEmail(memberId).orElseThrow(() -> new DateTimeException("member not found"));
@@ -208,7 +208,7 @@ public class GroupService implements IGroupService {
         // update room for members
         LocalDateTime time = LocalDateTime.now();
         for(String memberInGroup : members) {
-            // cập nhật chat room của các thành viên đó
+            // cập nhật chat room của các thành có trong nhóm
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberInGroup, groupId)
                     .orElseThrow();
@@ -221,6 +221,7 @@ public class GroupService implements IGroupService {
         // update group
         members.remove(memberId);
         group.setMembers(members);
+        group.setNumberOfMembers(members.size());
         group.setUpdatedAt(LocalDateTime.now());
         groupRepository.save(group);
 
@@ -239,27 +240,240 @@ public class GroupService implements IGroupService {
     }
 
     @Override
-    public void removeGroup(String ownerId, String groupId) {
+    @Transactional
+    public void removeGroup(String ownerId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        if(!ownerId.equals(group.getOwner())) throw new PermissionAccessDenied("permission access denied");
+        group.setGroupStatus(GroupStatus.INACTIVE);
+        Message message = Message.builder()
+                .content("trưởng nhóm đã giải tán nhóm")
+                .messageType(MessageType.SYSTEM)
+                .sendDate(LocalDateTime.now())
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
+                .roomId(group.getId())
+                .build();
+        messageRepository.save(message);
+        List<String> members = group.getMembers();
+
+        LocalDateTime time = LocalDateTime.now();
+        for (String memberId: members) {
+            Room room = roomRepository
+                    .findBySenderIdAndReceiverId(memberId, groupId)
+                    .orElseThrow();
+            room.setTime(time);
+            room.setLatestMessage(message.getContent().toString());
+            room.setNumberOfUnreadMessage(0);
+            roomRepository.save(room);
+        }
+
+        // update group
+        group.setUpdatedAt(time);
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("REMOVE_GROUP")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
 
     }
 
     @Override
-    public void addAdmin(String ownerId, String adminId, String groupId) {
+    @Transactional
+    public void addAdmin(String ownerId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied, DataExistsException {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        // kiểm tra quyền owner
+        Group group = optionalGroup.get();
+        if(!ownerId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to add admin");
+        List<String> admins = group.getAdmins();
+        List<String> members = group.getMembers();
+        if(!members.contains(adminId)) throw new PermissionAccessDenied("this user is not member in group");
+        if(admins.contains(adminId)) throw new DataExistsException("admin is exist");
+        admins.add(adminId);
+        group.setAdmins(admins);
+        LocalDateTime time = LocalDateTime.now();
+        group.setUpdatedAt(time);
+
+        User owner = userRepository.findByEmail(ownerId).orElseThrow(() -> new DataNotFoundException("owner not found"));
+        User admin = userRepository.findByEmail(adminId).orElseThrow(() -> new DataNotFoundException("admin not found"));
+
+        Message message = Message.builder()
+                .content(admin.getName() + " đã được " + owner.getName() + " phong làm phó nhóm")
+                .messageType(MessageType.SYSTEM)
+                .sendDate(LocalDateTime.now())
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
+                .roomId(group.getId())
+                .build();
+        messageRepository.save(message);
+
+        // update room for members
+        for (String memberId: members) {
+            Room room = roomRepository
+                    .findBySenderIdAndReceiverId(memberId, groupId)
+                    .orElseThrow();
+            room.setTime(time);
+            room.setLatestMessage(message.getContent().toString());
+            roomRepository.save(room);
+        }
+
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("ADD_ADMIN")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
+
 
     }
 
     @Override
-    public void removeAdmin(String ownerId, String adminId, String groupId) {
+    @Transactional
+    public void removeAdmin(String ownerId, String adminId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        if(!ownerId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to delete admin");
+        List<String> admins = group.getAdmins();
+        List<String> members = group.getMembers();
 
+        admins.remove(adminId);
+        group.setAdmins(admins);
+        LocalDateTime time = LocalDateTime.now();
+        group.setUpdatedAt(time);
+
+        User owner = userRepository.findByEmail(ownerId).orElseThrow(() -> new DataNotFoundException("owner not found"));
+        User admin = userRepository.findByEmail(adminId).orElseThrow(() -> new DataNotFoundException("admin not found"));
+
+        Message message = Message.builder()
+                .content(admin.getName() + " đã được " + owner.getName() + " giáng chức làm thành viên")
+                .messageType(MessageType.SYSTEM)
+                .sendDate(LocalDateTime.now())
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
+                .roomId(group.getId())
+                .build();
+        messageRepository.save(message);
+
+        // update room for members
+        for (String memberId: members) {
+            Room room = roomRepository
+                    .findBySenderIdAndReceiverId(memberId, groupId)
+                    .orElseThrow();
+            room.setTime(time);
+            room.setLatestMessage(message.getContent().toString());
+            roomRepository.save(room);
+        }
+
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("REMOVE_ADMIN")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
     }
 
     @Override
-    public void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission) {
+    public void updateAddMemberPermission(String ownerId, String groupId, AddMembersPermission addMembersPermission)
+            throws DataNotFoundException, PermissionAccessDenied {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        if(!ownerId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to update permission");
+        group.setAddMembersPermission(addMembersPermission);
+        group.setUpdatedAt(LocalDateTime.now());
+        groupRepository.save(group);
 
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("UPDATE_ADD_MEMBER_PERMISSION")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
     }
 
     @Override
-    public void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) {
+    public void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) throws DataNotFoundException, PermissionAccessDenied {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        if(!ownerId.equals(group.getOwner())) throw new PermissionAccessDenied("only owner have to update permission");
+        group.setSendMessagePermission(sendMessagePermission);
+        group.setUpdatedAt(LocalDateTime.now());
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("UPDATE_ADD_SEND_MESSAGE_PERMISSION")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
+    }
+
+    @Override
+    @Transactional
+    public void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
+        Optional<Group> optionalGroup = groupRepository.findById(groupId);
+        if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
+        Group group = optionalGroup.get();
+        if(group.getOwner().equals(memberId)) throw new PermissionAccessDenied("owner can't leave group");
+        List<String> members = group.getMembers();
+        if(!members.contains(memberId)) throw new PermissionAccessDenied("you are not member in group");
+        members.remove(memberId);
+        group.setMembers(members);
+        List<String> admins = group.getAdmins();
+        admins.remove(memberId);
+        group.setAdmins(admins);
+        group.setNumberOfMembers(members.size());
+        LocalDateTime time = LocalDateTime.now();
+        group.setUpdatedAt(time);
+        groupRepository.save(group);
+        User member = userRepository.findByEmail(memberId).orElseThrow(() -> new DataNotFoundException("user not found"));
+        Message message = Message.builder()
+                .content(member.getName() + " đã rời nhóm")
+                .messageType(MessageType.SYSTEM)
+                .sendDate(LocalDateTime.now())
+                .senderId("system@gmail.com")
+                .messageStatus(MessageStatus.SENT)
+                .roomId(group.getId())
+                .build();
+        messageRepository.save(message);
+
+        // update room for members
+        for (String memberGroupId: members) {
+            Room room = roomRepository
+                    .findBySenderIdAndReceiverId(memberGroupId, groupId)
+                    .orElseThrow();
+            room.setTime(time);
+            room.setLatestMessage(message.getContent().toString());
+            roomRepository.save(room);
+        }
+
+        groupRepository.save(group);
+
+        // notify to group
+        UserNotify userNotify = UserNotify.builder()
+                .status("MEMBER_LEAVE")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                groupId, "/queue/messages", userNotify
+        );
+
+
 
     }
 

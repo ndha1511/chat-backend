@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "groups")
@@ -20,9 +21,9 @@ public class Group {
     @Field(name = "group_name")
     private String groupName;
     private String avatar;
-    private List<String> members;
+    private List<String> members = new ArrayList<>();
     private String owner;
-    private List<String> admins;
+    private List<String> admins = new ArrayList<>();
     @Field(name = "created_at")
     private LocalDateTime createdAt;
     @Field(name = "updated_at")
