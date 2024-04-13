@@ -6,6 +6,7 @@ import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.RoomRepository;
+import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.UserNotify;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class MessageService implements IMessageService {
+    private final UserRepository userRepository;
     private final GroupRepository groupRepository;
     private final RoomRepository roomRepository;
     private final MessageRepository messageRepository;
@@ -49,25 +51,37 @@ public class MessageService implements IMessageService {
             if (chatRequest.getFileContent() != null) {
                 s3UploadService.uploadFile(chatRequest.getFileContent(), message);
             } else {
+                LocalDateTime time = LocalDateTime.now();
                 message.setMessageStatus(MessageStatus.SENT);
-                message.setSendDate(LocalDateTime.now());
+                message.setSendDate(time);
                 messageRepository.save(message);
                 List<Room> rooms = roomService.findByRoomId(message.getRoomId());
+
                 for (Room room : rooms) {
                     if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                        if (message.getContent() instanceof FileObject) {
-                            room.setLatestMessage(message.getMessageType().toString());
-                        } else room.setLatestMessage(message.getContent().toString());
-                        room.setTime(LocalDateTime.now());
+                        if (message.getContent() instanceof FileObject) room.setLatestMessage(message.getMessageType().toString());
+                        else room.setLatestMessage(message.getContent().toString());
+                        room.setTime(time);
                         room.setSender(true);
                         room.setNumberOfUnreadMessage(0);
                         roomService.saveRoom(room);
                     } else {
+                        User user = userRepository.findByEmail(message.getSenderId()).orElseThrow();
                         if (message.getContent() instanceof FileObject) {
-                            room.setLatestMessage(message.getMessageType().toString());
-                        } else room.setLatestMessage(message.getContent().toString());
+                            if(isGroupChat(room.getRoomId())) {
+                                room.setLatestMessage(user.getName() + ": " +message.getMessageType().toString());
+                            } else {
+                                room.setLatestMessage(message.getMessageType().toString());
+                            }
+
+                        } else {
+                            if(isGroupChat(room.getRoomId())) {
+                                room.setLatestMessage(user.getName() + ": " + message.getContent().toString());
+                            } else
+                                room.setLatestMessage(message.getContent().toString());
+                        }
                         room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                        room.setTime(LocalDateTime.now());
+                        room.setTime(time);
                         room.setSender(false);
                         roomService.saveRoom(room);
                     }
@@ -112,6 +126,9 @@ public class MessageService implements IMessageService {
 
         }
 
+    }
+    public boolean isGroupChat(String roomId) {
+        return groupRepository.findById(roomId).isPresent();
     }
 
     private String getRoomIdConvert(String senderId, String receiverId) throws DataNotFoundException {

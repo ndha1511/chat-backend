@@ -458,9 +458,18 @@ public class GroupService implements IGroupService {
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberGroupId, groupId)
                     .orElseThrow();
+            if(room.getSenderId().equals(memberGroupId)) {
+                room.setRoomStatus(RoomStatus.INACTIVE);
+                room.setLatestMessage("Bạn đã rời nhóm");
+                room.setNumberOfUnreadMessage(0);
+                room.setSender(false);
+            } else {
+                room.setLatestMessage(message.getContent().toString());
+            }
             room.setTime(time);
-            room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
+
+
         }
 
         groupRepository.save(group);

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +39,8 @@ public class RoomService implements IRoomService{
                 .senderId(userId)
                 .receiverId(groupId)
                 .roomType(RoomType.GROUP_CHAT)
+                .createdAt(LocalDateTime.now())
+                .roomStatus(RoomStatus.ACTIVE)
                 .build();
         return roomRepository.save(room);
     }
@@ -137,16 +140,21 @@ public class RoomService implements IRoomService{
 
     private String createRoomId(String senderId, String receiverId) {
         var roomId = String.format("%s_%s", senderId, receiverId);
+        LocalDateTime time = LocalDateTime.now();
         Room senderRoom = Room.builder()
                 .roomType(RoomType.SINGLE_CHAT)
                 .senderId(senderId)
                 .receiverId(receiverId)
                 .roomId(roomId)
+                .createdAt(time)
+                .roomStatus(RoomStatus.ACTIVE)
                 .build();
         Room receiverRoom = Room.builder()
                 .roomType(RoomType.SINGLE_CHAT)
                 .senderId(receiverId)
                 .receiverId(senderId)
+                .roomStatus(RoomStatus.ACTIVE)
+                .createdAt(time)
                 .roomId(roomId)
                 .build();
         roomRepository.save(senderRoom);
