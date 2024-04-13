@@ -3,10 +3,7 @@ package com.project.chatbackend.services;
 import com.project.chatbackend.exceptions.DataExistsException;
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.exceptions.PermissionAccessDenied;
-import com.project.chatbackend.models.AddMembersPermission;
-import com.project.chatbackend.models.Group;
-import com.project.chatbackend.models.Room;
-import com.project.chatbackend.models.SendMessagePermission;
+import com.project.chatbackend.models.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -26,6 +23,7 @@ public interface IGroupService {
     void updateSendMessagePermission(String ownerId, String groupId, SendMessagePermission sendMessagePermission) throws DataNotFoundException, PermissionAccessDenied;
     void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
     List<Group> findAllBySenderId(String senderId);
+    List<User> getMemberInGroup(String groupId) throws DataNotFoundException;
 
 
 

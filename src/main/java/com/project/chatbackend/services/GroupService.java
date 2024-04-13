@@ -148,7 +148,7 @@ public class GroupService implements IGroupService {
                     .room(room)
                     .build();
             simpMessagingTemplate.convertAndSendToUser(
-                    memberId, "queue/message",
+                    memberId, "queue/messages",
                     userNotify
             );
             ++index;
@@ -172,7 +172,7 @@ public class GroupService implements IGroupService {
                 .status("ADD_MEMBER_GROUP")
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
-                groupId, "queue/message",
+                groupId, "queue/messages",
                 userNotify
         );
 
@@ -482,17 +482,18 @@ public class GroupService implements IGroupService {
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberGroupId, groupId)
                     .orElseThrow();
-            if(room.getSenderId().equals(memberGroupId)) {
+            if(room.getSenderId().equals(memberId)) {
                 room.setRoomStatus(RoomStatus.INACTIVE);
                 room.setLatestMessage("Bạn đã rời nhóm");
                 room.setNumberOfUnreadMessage(0);
                 room.setSender(false);
-                roomLeave = room;
+
             } else {
                 room.setLatestMessage(message.getContent().toString());
             }
             room.setTime(time);
             roomRepository.save(room);
+            roomLeave = room;
 
 
         }
@@ -534,6 +535,19 @@ public class GroupService implements IGroupService {
             }
         }
         return groups;
+    }
+
+    @Override
+    public List<User> getMemberInGroup(String groupId) throws DataNotFoundException {
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new DataNotFoundException("group not found"));
+        List<String> members = group.getMembers();
+        List<User> users = new ArrayList<>();
+        for (String memberId: members) {
+            Optional<User> optionalUser = userRepository.findByEmail(memberId);
+            if(optionalUser.isEmpty()) continue;
+            users.add(optionalUser.get());
+        }
+        return users;
     }
 
     private Group getGroup(String adderId, Optional<Group> optionalGroup) throws PermissionAccessDenied {
