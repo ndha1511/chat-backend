@@ -65,7 +65,15 @@ public class S3UploadAsync {
         message.setSendDate(time);
         messageRepository.save(message);
         List<Room> rooms = roomService.findByRoomId(message.getRoomId());
+        Group group = null;
+        if(isGroupChat(message.getRoomId())) {
+            group = groupRepository.findById(message.getRoomId()).orElseThrow();
+        }
         for (Room room : rooms) {
+            if(group != null){
+                List<String> members = group.getMembers();
+                if(!members.contains(room.getSenderId())) continue;
+            }
             if (Objects.equals(room.getSenderId(), message.getSenderId())) {
                 if(message.getContent() instanceof FileObject) {
                     room.setLatestMessage(message.getMessageType().toString());

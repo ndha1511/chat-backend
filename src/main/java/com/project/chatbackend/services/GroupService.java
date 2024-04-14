@@ -10,6 +10,7 @@ import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GroupService implements IGroupService {
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
@@ -135,11 +137,16 @@ public class GroupService implements IGroupService {
             messageRepository.save(message);
             if(index == membersId.size() - 1)
                 messageLatest = message;
-            Room room = roomService.createRoomForGroup(memberId, group.getId());
+            // kiểm tra room có trong hệ thống chưa
+            Optional<Room> optionalRoom = roomRepository.findBySenderIdAndReceiverId(memberId, groupId);
+            Room room;
+            room = optionalRoom.orElseGet(() -> roomService.createRoomForGroup(memberId, group.getId()));
             room.setLatestMessage(message.getContent().toString());
             room.setTime(LocalDateTime.now());
             room.setSender(false);
+            room.setRoomStatus(RoomStatus.ACTIVE);
             roomRepository.save(room);
+
 
             // notify for users
             UserNotify userNotify = UserNotify.builder()
@@ -455,6 +462,7 @@ public class GroupService implements IGroupService {
         if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
         Group group = optionalGroup.get();
         if(group.getOwner().equals(memberId)) throw new PermissionAccessDenied("owner can't leave group");
+        List<String> membersBefore = new ArrayList<>(group.getMembers());
         List<String> members = group.getMembers();
         if(!members.contains(memberId)) throw new PermissionAccessDenied("you are not member in group");
         members.remove(memberId);
@@ -476,9 +484,9 @@ public class GroupService implements IGroupService {
                 .roomId(group.getId())
                 .build();
         messageRepository.save(message);
-        Room roomLeave = null;
+        Room roomLeave = new Room();
         // update room for members
-        for (String memberGroupId: members) {
+        for (String memberGroupId: membersBefore) {
             Room room = roomRepository
                     .findBySenderIdAndReceiverId(memberGroupId, groupId)
                     .orElseThrow();
@@ -487,20 +495,23 @@ public class GroupService implements IGroupService {
                 room.setLatestMessage("Bạn đã rời nhóm");
                 room.setNumberOfUnreadMessage(0);
                 room.setSender(false);
+                roomLeave = room;
 
             } else {
                 room.setLatestMessage(message.getContent().toString());
             }
             room.setTime(time);
             roomRepository.save(room);
-            roomLeave = room;
 
 
         }
 
         groupRepository.save(group);
 
+
+
         // notify cho chính mình
+        roomLeave.setRoomId(group.getId());
         UserNotify userNotifyMain = UserNotify.builder()
                 .status("LEAVE")
                 .room(roomLeave)
