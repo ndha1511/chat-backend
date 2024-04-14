@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.lang.reflect.Member;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -41,7 +42,7 @@ public class MessageService implements IMessageService {
     @Override
     @Transactional
     public void saveMessage(ChatRequest chatRequest, Message messageTmp) throws PermissionAccessDenied {
-        checkPermissionInChatGroup(chatRequest);
+        Group group = checkPermissionInChatGroup(chatRequest);
         Message message = convertToMessage(chatRequest);
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
@@ -61,6 +62,10 @@ public class MessageService implements IMessageService {
                 List<Room> rooms = roomService.findByRoomId(message.getRoomId());
 
                 for (Room room : rooms) {
+                    if(group != null) {
+                        List<String> members = group.getMembers();
+                        if(!members.contains(room.getSenderId())) continue;
+                    }
                     if (Objects.equals(room.getSenderId(), message.getSenderId())) {
                         if (message.getContent() instanceof FileObject) room.setLatestMessage(message.getMessageType().toString());
                         else room.setLatestMessage(message.getContent().toString());
@@ -214,7 +219,7 @@ public class MessageService implements IMessageService {
         return messageRepository.save(message);
     }
 
-    private void checkPermissionInChatGroup(ChatRequest chatRequest) throws PermissionAccessDenied {
+    private Group checkPermissionInChatGroup(ChatRequest chatRequest) throws PermissionAccessDenied {
         // kiểm tra xem có phải cuộc trò chuyện nhóm hay không
         Optional<Group> optionalGroup = groupRepository.findById(chatRequest.getReceiverId());
         if (optionalGroup.isPresent()) {
@@ -237,7 +242,9 @@ public class MessageService implements IMessageService {
                 if (!group.getOwner().equals(chatRequest.getSenderId()))
                     throw new PermissionAccessDenied("only owner can send message");
             }
+            return group;
         }
+        return null;
     }
 
     @Override
