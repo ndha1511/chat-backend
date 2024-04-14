@@ -281,16 +281,24 @@ public class MessageService implements IMessageService {
     }
 
     @Override
+    @Transactional
     public void forwardMessage(String messageId, String senderId, List<String> receiversId) throws DataNotFoundException {
         Optional<Message> optionalMessage = messageRepository.findById(messageId);
         Message message = optionalMessage.orElseThrow();
-        message.setSenderId(senderId);
+        User sendUser = userRepository.findByEmail(senderId).orElseThrow(() -> new DataNotFoundException("user not found"));
         for (String receiverId : receiversId) {
+            Message newMsg;
+            newMsg = message;
+            newMsg.setId(null);
+            newMsg.setSenderId(senderId);
+            newMsg.setSenderAvatar(sendUser.getAvatar());
+            newMsg.setSenderName(sendUser.getName());
             String roomId = getRoomIdConvert(senderId, receiverId);
-            message.setMessageStatus(MessageStatus.SENT);
-            message.setReceiverId(receiverId);
-            message.setSendDate(LocalDateTime.now());
-            message.setRoomId(roomId);
+            newMsg.setMessageStatus(MessageStatus.SENT);
+            newMsg.setReceiverId(receiverId);
+            newMsg.setSendDate(LocalDateTime.now());
+            newMsg.setRoomId(roomId);
+            messageRepository.save(newMsg);
 
             // update rooms
             List<Room> rooms = roomRepository.findByRoomId(roomId);
