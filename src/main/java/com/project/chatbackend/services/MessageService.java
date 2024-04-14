@@ -156,6 +156,7 @@ public class MessageService implements IMessageService {
                 List<Message> messagesSystem = messagePage.getContent()
                         .stream()
                         .filter(msg -> msg.getMessageType().equals(MessageType.SYSTEM))
+                        .sorted(Comparator.comparing(Message::getSendDate))
                         .toList();
                 return MessageResponse.builder()
                         .messages(messagesSystem)
@@ -224,7 +225,11 @@ public class MessageService implements IMessageService {
         Optional<Group> optionalGroup = groupRepository.findById(chatRequest.getReceiverId());
         if (optionalGroup.isPresent()) {
 
+
             Group group = optionalGroup.get();
+            // kiểm tra group có active hay không
+            if(group.getGroupStatus().equals(GroupStatus.INACTIVE))
+                throw new PermissionAccessDenied("group inactive");
             // kiểm tra user có trong group hay không
             List<String> members = group.getMembers();
             if (!members.contains(chatRequest.getSenderId()))

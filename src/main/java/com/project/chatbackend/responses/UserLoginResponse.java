@@ -15,5 +15,6 @@ public class UserLoginResponse {
     private String coverImage;
     private String email;
     private String dob;
+    private List<String> friends;
     private List<String> images;
 }
