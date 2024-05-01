@@ -29,8 +29,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String email;
+        final String requestURI = request.getRequestURI();
 
-        if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if(authHeader == null || !authHeader.startsWith("Bearer ") || requestURI.endsWith("/refreshToken")) {
             filterChain.doFilter(request, response);
             return;
         }

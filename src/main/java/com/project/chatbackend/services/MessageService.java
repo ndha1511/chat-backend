@@ -7,6 +7,7 @@ import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.CallRequest;
 import com.project.chatbackend.requests.ChatImageGroupRequest;
 import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.UserNotify;
@@ -380,6 +381,82 @@ public class MessageService implements IMessageService {
                 receiverId, "queue/messages",
                 seen
         );
+    }
+
+    @Override
+    public Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied {
+        String roomId = getRoomIdConvert(callRequest.getSenderId(), callRequest.getReceiverId());
+        Room room = roomRepository.findBySenderIdAndReceiverId(callRequest.getSenderId(),
+                callRequest.getReceiverId()).orElseThrow(() -> new DataNotFoundException("room not found"));
+        CallInfo callInfo = CallInfo.builder()
+                .callStatus(CallStatus.START)
+                .build();
+        LocalDateTime time = LocalDateTime.now();
+        Message message = Message.builder()
+                .senderId(callRequest.getSenderId())
+                .receiverId(callRequest.getReceiverId())
+                .roomId(roomId)
+                .messageStatus(MessageStatus.SENT)
+                .content(callInfo)
+                .messageType(callRequest.getMessageType())
+                .sendDate(time)
+                .hiddenSenderSide(false)
+                .build();
+        Message messageRs = messageRepository.save(message);
+        List<Room> rooms = roomRepository.findByRoomId(roomId);
+        if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
+            ChatRequest chatRequest = ChatRequest.builder()
+                    .senderId(callRequest.getSenderId())
+                    .receiverId(callRequest.getReceiverId())
+                    .build();
+            checkPermissionInChatGroup(chatRequest);
+            for (Room roomGroup : rooms) {
+                if(roomGroup.getSenderId().equals(callRequest.getSenderId())) {
+                    roomGroup.setLatestMessage("Đã bắt đầu cuộc gọi nhóm");
+                    roomGroup.setSender(true);
+                    roomGroup.setNumberOfUnreadMessage(0);
+                    roomGroup.setTime(time);
+                } else {
+                    User user = userRepository.findByEmail(callRequest.getSenderId()).orElseThrow();
+                    roomGroup.setLatestMessage(user.getName() + " đã bắt đầu cuộc gọi nhóm");
+                    roomGroup.setSender(false);
+                    roomGroup.setNumberOfUnreadMessage(roomGroup.getNumberOfUnreadMessage() + 1);
+                    roomGroup.setTime(time);
+                }
+                roomRepository.save(roomGroup);
+            }
+        } else {
+            for (Room roomUser : rooms) {
+                String latestMessage;
+                if(callRequest.getMessageType().equals(MessageType.AUDIO_CALL)) {
+                    latestMessage = "Cuộc gọi thoại";
+                } else {
+                    latestMessage = "Cuộc gọi video";
+                }
+                if(roomUser.getSenderId().equals(callRequest.getSenderId())) {
+                    roomUser.setLatestMessage(latestMessage);
+                    roomUser.setSender(true);
+                    roomUser.setNumberOfUnreadMessage(0);
+                    roomUser.setTime(time);
+                } else {
+                    roomUser.setLatestMessage(latestMessage);
+                    roomUser.setSender(false);
+                    roomUser.setNumberOfUnreadMessage(roomUser.getNumberOfUnreadMessage() + 1);
+                    roomUser.setTime(time);
+                }
+                roomRepository.save(roomUser);
+            }
+        }
+        UserNotify callRequestNotify = UserNotify.builder()
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .status("CALL_REQUEST")
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                callRequest.getReceiverId(), "queue/messages",
+                callRequestNotify
+        );
+        return messageRs;
     }
 
 
