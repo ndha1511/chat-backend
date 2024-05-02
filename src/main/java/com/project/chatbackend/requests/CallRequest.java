@@ -9,5 +9,6 @@ import lombok.Data;
 public class CallRequest {
     private String senderId;
     private String receiverId;
+    private String messageId;
     private MessageType messageType;
 }

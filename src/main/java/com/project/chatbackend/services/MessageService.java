@@ -448,9 +448,10 @@ public class MessageService implements IMessageService {
             }
         }
         UserNotify callRequestNotify = UserNotify.builder()
-                .senderId(message.getSenderId())
-                .receiverId(message.getReceiverId())
+                .senderId(messageRs.getSenderId())
+                .receiverId(messageRs.getReceiverId())
                 .status("CALL_REQUEST")
+                .message(messageRs)
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
                 callRequest.getReceiverId(), "queue/messages",
