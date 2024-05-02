@@ -39,7 +39,7 @@ public class S3UploadService {
 
 
     public void uploadFile(MultipartFile file, Message message) throws IOException {
-        log.info("start uploading at " + new Date(System.currentTimeMillis()));
+        log.info("start uploading at {}", new Date(System.currentTimeMillis()));
         AwsCredentialsProvider credentialsProvider = () -> AwsBasicCredentials.create(accessKey, secretKey);
         String fileName = file.getOriginalFilename();
         String key = generateUniqueKey(fileName);

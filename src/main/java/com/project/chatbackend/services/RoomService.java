@@ -7,7 +7,6 @@ import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.repositories.UserRepository;
 import com.project.chatbackend.responses.RoomResponse;
-import com.project.chatbackend.responses.UserLoginResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,34 +51,25 @@ public class RoomService implements IRoomService{
 
     @Override
     public RoomResponse mapRoomToRoomResponse(Room room) throws DataNotFoundException {
-        UserLoginResponse userLoginResponse = null;
+        User user = null;
         Group group = null;
         if (room.getRoomType() == RoomType.SINGLE_CHAT) {
-            userLoginResponse = userRepository
+            user = userRepository
                     .findById(room.getReceiverId())
-                    .map(user -> UserLoginResponse.builder()
-                            .email(user.getEmail())
-                            .name(user.getName())
-                            .avatar(user.getAvatar())
-                            .gender(user.isGender())
-                            .phoneNumber(user.getPhoneNumber())
-                            .images(user.getImages())
-                            .coverImage(user.getCoverImage())
-                            .build())
                     .orElseThrow(() -> new DataNotFoundException("user not found"));
             return RoomResponse.builder()
                     .objectId(room.getId())
                     .roomId(room.getRoomId())
-                    .receiverId(userLoginResponse.getEmail())
+                    .receiverId(user.getEmail())
                     .senderId(room.getSenderId())
                     .time(room.getTime())
                     .latestMessage(room.getLatestMessage())
                     .numberOfUnreadMessage(room.getNumberOfUnreadMessage())
-                    .avatar(userLoginResponse.getAvatar())
+                    .avatar(user.getAvatar())
                     .sender(room.isSender())
                     .roomStatus(room.getRoomStatus())
                     .roomType(room.getRoomType())
-                    .name(userLoginResponse.getName())
+                    .name(user.getName())
                     .build();
         } else {
             group = groupRepository.findById(room.getReceiverId())

@@ -59,6 +59,36 @@ public class MessageController {
         }
     }
 
+    @PostMapping("/callRequest")
+    public ResponseEntity<?> callRequest(@RequestBody CallRequest callRequest,
+                                         HttpServletRequest httpServletRequest) {
+        try {
+            authService.AuthenticationToken(httpServletRequest, callRequest.getSenderId());
+            messageService.saveCall(callRequest);
+            return ResponseEntity.ok("call request saved");
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.status(406).body(e.getMessage());
+        } catch (DataNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+
+    }
+
+    @PostMapping("/acceptCallRequest")
+    public ResponseEntity<?> acceptCallRequest(@RequestBody CallRequest callRequest) {
+        return ResponseEntity.ok("");
+    }
+
+    @PostMapping("/rejectCallRequest")
+    public ResponseEntity<?> rejectCallRequest(@RequestBody CallRequest callRequest) {
+        return ResponseEntity.ok("");
+    }
+
+    @PostMapping("/closeCall")
+    public ResponseEntity<?> closeCall(@RequestBody CallRequest callRequest) {
+        return ResponseEntity.ok("");
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<?> updateMessage(@PathVariable String id, @RequestBody ChatRequest chatRequest) {
         try {
