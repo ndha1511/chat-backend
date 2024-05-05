@@ -22,4 +22,7 @@ public interface IMessageService {
     void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
     void seenMessage(String roomId, String senderId, String receiverId);
     Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied;
+    void acceptCall(String messageId);
+    void rejectCall(String messageId);
+    void endCall(String messageId);
 }

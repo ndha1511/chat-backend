@@ -64,8 +64,8 @@ public class MessageController {
                                          HttpServletRequest httpServletRequest) {
         try {
             authService.AuthenticationToken(httpServletRequest, callRequest.getSenderId());
-            messageService.saveCall(callRequest);
-            return ResponseEntity.ok("call request saved");
+            Message ms = messageService.saveCall(callRequest);
+            return ResponseEntity.ok(ms);
         } catch (PermissionAccessDenied e) {
             return ResponseEntity.status(406).body(e.getMessage());
         } catch (DataNotFoundException e) {
@@ -74,19 +74,22 @@ public class MessageController {
 
     }
 
-    @PostMapping("/acceptCallRequest")
-    public ResponseEntity<?> acceptCallRequest(@RequestBody CallRequest callRequest) {
-        return ResponseEntity.ok("");
+    @GetMapping("/acceptCallRequest/{messageId}")
+    public ResponseEntity<?> acceptCallRequest(@PathVariable String messageId) {
+        messageService.acceptCall(messageId);
+        return ResponseEntity.ok("accepted, calling...");
     }
 
-    @PostMapping("/rejectCallRequest")
-    public ResponseEntity<?> rejectCallRequest(@RequestBody CallRequest callRequest) {
-        return ResponseEntity.ok("");
+    @GetMapping("/rejectCallRequest/{messageId}")
+    public ResponseEntity<?> rejectCallRequest(@PathVariable String messageId) {
+        messageService.rejectCall(messageId);
+        return ResponseEntity.ok("rejected");
     }
 
-    @PostMapping("/closeCall")
-    public ResponseEntity<?> closeCall(@RequestBody CallRequest callRequest) {
-        return ResponseEntity.ok("");
+    @GetMapping("/closeCall/{messageId}")
+    public ResponseEntity<?> closeCall(@PathVariable String messageId) {
+        messageService.endCall(messageId);
+        return ResponseEntity.ok("stopped");
     }
 
     @PutMapping("/{id}")
