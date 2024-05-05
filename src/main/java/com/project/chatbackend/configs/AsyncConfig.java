@@ -6,6 +6,9 @@ import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 @Configuration
 @EnableAsync
 @EnableRetry
@@ -20,4 +23,5 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
 }

@@ -1,39 +1,49 @@
 package com.project.chatbackend.controllers;
 
+
+import com.project.chatbackend.calls.AnswerMessage;
+import com.project.chatbackend.calls.Call;
+import com.project.chatbackend.calls.CandidateMessage;
+import com.project.chatbackend.calls.OfferMessage;
 import lombok.RequiredArgsConstructor;
-import org.cloudinary.json.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 @Controller
 @RequiredArgsConstructor
+@Slf4j
 public class CallController {
 
     private final SimpMessagingTemplate simpMessagingTemplate;
 
     @MessageMapping("/call")
-    public void Call(String call){
-        JSONObject jsonObject = new JSONObject(call);
-        simpMessagingTemplate.convertAndSendToUser(jsonObject.getString("callTo"),"/topic/call",jsonObject.get("callFrom"));
+    public void Call(@Payload Call call){
+        simpMessagingTemplate.convertAndSendToUser(call.getCallTo(),
+                "/topic/call", call);
     }
 
     @MessageMapping("/offer")
-    public void Offer(String offer){
-        JSONObject jsonObject = new JSONObject(offer);
-        simpMessagingTemplate.convertAndSendToUser(jsonObject.getString("toUser"),"/topic/offer",offer);
+    public void offer(@Payload OfferMessage offer){
+        simpMessagingTemplate
+                .convertAndSendToUser(offer.getReceiverId(),
+                        "/topic/offer",offer);
     }
 
     @MessageMapping("/answer")
-    public void Answer(String answer){
-        JSONObject jsonObject = new JSONObject(answer);
-        simpMessagingTemplate.convertAndSendToUser(jsonObject.getString("toUser"),"/topic/answer",answer);
+    public void answer(@Payload AnswerMessage answer){
+        simpMessagingTemplate.convertAndSendToUser(answer.getReceiverId(),
+                "/topic/answer",answer);
     }
 
     @MessageMapping("/candidate")
-    public void Candidate(String candidate){
-        JSONObject jsonObject = new JSONObject(candidate);
-        simpMessagingTemplate.convertAndSendToUser(jsonObject.getString("toUser"),"/topic/candidate",candidate);
+    public void candidate(@Payload CandidateMessage candidate){
+        simpMessagingTemplate
+                .convertAndSendToUser(candidate.getReceiverId(),
+                        "/topic/candidate",candidate);
     }
 
 
