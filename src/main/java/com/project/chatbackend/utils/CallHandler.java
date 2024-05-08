@@ -55,7 +55,7 @@ public class CallHandler {
                 roomRepository.save(room);
             }
         }
-        notify(message.getSenderId(), message.getReceiverId(), "ACCEPT_CALL");
+        notify(message.getSenderId(), "", "ACCEPT_CALL");
     }
 
     public void endCall(Message message) {
@@ -114,20 +114,33 @@ public class CallHandler {
         notify(message.getSenderId(), message.getReceiverId(), "REJECT_CALL");
     }
 
+    public void joinCall(Message message) {
+
+
+    }
+
+    public void leaveCall(Message message) {
+
+    }
+
     private void notify(String senderId, String receiverId, String status) {
         UserNotify callRequestNotify = UserNotify.builder()
                 .senderId(senderId)
                 .receiverId(receiverId)
                 .status(status)
                 .build();
-        simpMessagingTemplate.convertAndSendToUser(
-                senderId, "queue/messages",
-                callRequestNotify
-        );
-        simpMessagingTemplate.convertAndSendToUser(
-                receiverId, "queue/messages",
-                callRequestNotify
-        );
+        if(!senderId.isEmpty()) {
+            simpMessagingTemplate.convertAndSendToUser(
+                    senderId, "queue/messages",
+                    callRequestNotify
+            );
+        }
+        if(!receiverId.isEmpty()) {
+            simpMessagingTemplate.convertAndSendToUser(
+                    receiverId, "queue/messages",
+                    callRequestNotify
+            );
+        }
     }
 
     private void handleMissedCall(Message message) {
