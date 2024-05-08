@@ -10,5 +10,4 @@ import lombok.Data;
 public class RequestAddFriendRespone {
     private User user;
     private String message;
-
 }
