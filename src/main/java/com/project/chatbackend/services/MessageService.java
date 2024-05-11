@@ -74,7 +74,18 @@ public class MessageService implements IMessageService {
                         room.setTime(time);
                         room.setSender(true);
                         room.setNumberOfUnreadMessage(0);
-                        roomService.saveRoom(room);
+                        Room roomRs = roomService.saveRoom(room);
+                        UserNotify success = UserNotify.builder()
+                                .status("SUCCESS")
+                                .senderId(message.getSenderId())
+                                .receiverId(message.getReceiverId())
+                                .message(message)
+                                .room(roomRs)
+                                .build();
+                        simpMessagingTemplate.convertAndSendToUser(
+                                message.getSenderId(), "queue/messages",
+                                success
+                        );
                     } else {
                         if (message.getContent() instanceof FileObject) {
                             if(isGroupChat(room.getRoomId())) {
@@ -95,22 +106,14 @@ public class MessageService implements IMessageService {
                         roomService.saveRoom(room);
                     }
                 }
-                UserNotify success = UserNotify.builder()
-                        .status("SUCCESS")
-                        .senderId(message.getSenderId())
-                        .receiverId(message.getReceiverId())
-                        .message(message)
-                        .build();
+
                 UserNotify sent = UserNotify.builder()
                         .status("SENT")
                         .senderId(message.getSenderId())
                         .receiverId(message.getReceiverId())
                         .message(message)
                         .build();
-                simpMessagingTemplate.convertAndSendToUser(
-                        message.getSenderId(), "queue/messages",
-                        success
-                );
+
                 simpMessagingTemplate.convertAndSendToUser(
                         message.getReceiverId(), "queue/messages",
                         sent
@@ -153,7 +156,7 @@ public class MessageService implements IMessageService {
         // kiểm tra trong trường hợp room này là group_chat
         if (group.isPresent()) {
             List<String> members = group.get().getMembers();
-            // nếu user không có trong group hoặc group inactive thì chỉ trả về các tin nhắn hệ thống
+            // nếu group inactive thì chỉ trả về các tin nhắn hệ thống
             if (group.get().getGroupStatus().equals(GroupStatus.INACTIVE)) {
                 List<Message> messagesSystem = messagePage.getContent()
                         .stream()
@@ -165,6 +168,7 @@ public class MessageService implements IMessageService {
                         .totalPage(0)
                         .build();
             }
+            // nếu user không có trong group => không trả về message
             if(!members.contains(senderId)) {
                 return MessageResponse.builder()
                         .messages(new ArrayList<>())
@@ -186,6 +190,13 @@ public class MessageService implements IMessageService {
         List<Message> results = Stream
                 .concat(messagesSend.stream(), messagesFilter.stream())
                 .sorted(Comparator.comparing(Message::getSendDate))
+//                .peek(msg -> {
+//                    if (!msg.getSenderId().equals(senderId)) {
+//                        User sender = userRepository.findByEmail(msg.getSenderId()).orElseThrow();
+//                        msg.setSenderAvatar(sender.getAvatar());
+//                        msg.setSenderName(sender.getName());
+//                    }
+//                })
                 .toList();
         return MessageResponse.builder()
                 .messages(results)

@@ -155,7 +155,7 @@ public class RoomService implements IRoomService{
 
     }
 
-    public void saveRoom(Room room) {
-        roomRepository.save(room);
+    public Room saveRoom(Room room) {
+        return roomRepository.save(room);
     }
 }

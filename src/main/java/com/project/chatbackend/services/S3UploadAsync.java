@@ -81,7 +81,18 @@ public class S3UploadAsync {
                 room.setTime(time);
                 room.setSender(true);
                 room.setNumberOfUnreadMessage(0);
-                roomService.saveRoom(room);
+                Room roomRs = roomService.saveRoom(room);
+                UserNotify success = UserNotify.builder()
+                        .status("SUCCESS")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .room(roomRs)
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getSenderId(), "queue/messages",
+                        success
+                );
             } else {
                 User user = userRepository.findByEmail(message.getSenderId()).orElseThrow();
                 if (message.getContent() instanceof FileObject) {
@@ -103,22 +114,13 @@ public class S3UploadAsync {
                 roomService.saveRoom(room);
             }
         }
-        UserNotify success = UserNotify.builder()
-                .status("SUCCESS")
-                .senderId(message.getSenderId())
-                .receiverId(message.getReceiverId())
-                .message(message)
-                .build();
+
         UserNotify sent = UserNotify.builder()
                 .status("SENT")
                 .senderId(message.getSenderId())
                 .receiverId(message.getReceiverId())
                 .message(message)
                 .build();
-        simpMessagingTemplate.convertAndSendToUser(
-                message.getSenderId(), "queue/messages",
-                success
-        );
         simpMessagingTemplate.convertAndSendToUser(
                 message.getReceiverId(), "queue/messages",
                 sent
