@@ -7,12 +7,19 @@ import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.MessageResponse;
 import com.project.chatbackend.services.AuthService;
 import com.project.chatbackend.services.IMessageService;
+import com.project.chatbackend.services.IMessageServiceQuery;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -21,6 +28,7 @@ import java.util.Optional;
 public class MessageController {
     private final IMessageService messageService;
     private final AuthService authService;
+    private final IMessageServiceQuery messageServiceQuery;
 
 
     @GetMapping("/{roomId}")
@@ -154,6 +162,45 @@ public class MessageController {
             return ResponseEntity.badRequest().body(e);
         }
     }
+
+    @GetMapping("/query")
+    public ResponseEntity<?> findMessage(@RequestParam String roomId,
+                                         @RequestParam(required = false) String senderId,
+                                         @RequestParam String content,
+                                         @RequestParam String currentId,
+                                         @RequestParam(defaultValue = "") String startDate,
+                                         @RequestParam(defaultValue = "") String endDate,
+                                         @RequestParam(defaultValue = "0") int page,
+                                         @RequestParam(defaultValue = "40") int size,
+                                         HttpServletRequest httpServletRequest) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Date start = null;
+            Date end = null;
+
+            if (!Objects.equals(startDate, "") && !Objects.equals(endDate, "")
+            && !startDate.isEmpty() && !endDate.isEmpty()) {
+                start = sdf.parse(startDate);
+                end = sdf.parse(endDate);
+            }
+            authService.AuthenticationToken(httpServletRequest, currentId);
+            return ResponseEntity.ok(messageServiceQuery.findByContentContaining(
+                    roomId,
+                    content,
+                    start,
+                    end,
+                    senderId,
+                    pageable
+            ));
+        } catch (PermissionAccessDenied e) {
+            return ResponseEntity.badRequest().body(e);
+        } catch (ParseException e) {
+            return ResponseEntity.badRequest().body("date invalid");
+        }
+    }
+
+
 
 
 }

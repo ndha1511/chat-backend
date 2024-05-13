@@ -299,6 +299,7 @@ public class MessageService implements IMessageService {
         Optional<Message> optionalMessage = messageRepository.findById(messageId);
         Message message = optionalMessage.orElseThrow();
         User sendUser = userRepository.findByEmail(senderId).orElseThrow(() -> new DataNotFoundException("user not found"));
+        Message messageRs = null;
         for (String receiverId : receiversId) {
             Message newMsg;
             newMsg = message;
@@ -311,7 +312,7 @@ public class MessageService implements IMessageService {
             newMsg.setReceiverId(receiverId);
             newMsg.setSendDate(LocalDateTime.now());
             newMsg.setRoomId(roomId);
-            messageRepository.save(newMsg);
+            messageRs = messageRepository.save(newMsg);
 
             // update rooms
             List<Room> rooms = roomRepository.findByRoomId(roomId);
@@ -339,6 +340,7 @@ public class MessageService implements IMessageService {
             UserNotify success = UserNotify.builder()
                     .senderId(message.getSenderId())
                     .receiverId(message.getReceiverId())
+                    .message(messageRs)
                     .status("SENT")
                     .build();
             simpMessagingTemplate.convertAndSendToUser(
@@ -351,6 +353,7 @@ public class MessageService implements IMessageService {
                 .senderId(message.getSenderId())
                 .receiverId(message.getReceiverId())
                 .status("SUCCESS")
+                .message(messageRs)
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
                 senderId, "queue/messages",
