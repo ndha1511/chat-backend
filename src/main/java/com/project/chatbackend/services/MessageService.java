@@ -50,6 +50,7 @@ public class MessageService implements IMessageService {
         Message message = convertToMessage(chatRequest);
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
+        message.setSenderAvatar(chatRequest.getSenderAvatar());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
 
