@@ -4,6 +4,7 @@ import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,8 @@ public class S3UploadAsync {
                            PutObjectRequest request,
                            RequestBody requestBody,
                            S3Client s3Client, Map<String, String> fileInfo,
-                           String filename) {
+                           String filename,
+                           long filSize) {
         String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
         String filePath = fileInfo.get(fileKey);
         String fileName = Objects.requireNonNull(filename.split("\\."))[0];
@@ -52,13 +54,14 @@ public class S3UploadAsync {
                 .fileExtension(extension[extension.length - 1])
                 .filePath(filePath)
                 .filename(fileName)
+                .size(filSize)
                 .build();
         s3Client.putObject(request, requestBody);
-        S3Waiter s3Waiter = s3Client.waiter();
-        HeadObjectRequest waitRequest = HeadObjectRequest.builder()
-                .bucket(bucketName).key(fileKey).build();
-        WaiterResponse<HeadObjectResponse> waiterResponse = s3Waiter.waitUntilObjectExists(waitRequest);
-        waiterResponse.matched().response().ifPresent(x -> log.info("File uploaded to S3 - Key: {}, Bucket: {}", fileKey, bucketName));
+//        S3Waiter s3Waiter = s3Client.waiter();
+//        HeadObjectRequest waitRequest = HeadObjectRequest.builder()
+//                .bucket(bucketName).key(fileKey).build();
+//        WaiterResponse<HeadObjectResponse> waiterResponse = s3Waiter.waitUntilObjectExists(waitRequest);
+//        waiterResponse.matched().response().ifPresent(x -> log.info("File uploaded to S3 - Key: {}, Bucket: {}", fileKey, bucketName));
         message.setContent(fileObject);
         message.setMessageStatus(MessageStatus.SENT);
         LocalDateTime time = LocalDateTime.now();
@@ -121,6 +124,71 @@ public class S3UploadAsync {
                 .receiverId(message.getReceiverId())
                 .message(message)
                 .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                message.getReceiverId(), "queue/messages",
+                sent
+        );
+    }
+
+    @Async
+    public void saveMessageAsync(Message message, ChatRequest chatRequest, Group group) {
+        LocalDateTime time = LocalDateTime.now();
+        message.setMessageStatus(MessageStatus.SENT);
+        message.setSendDate(time);
+        messageRepository.save(message);
+        List<Room> rooms = roomService.findByRoomId(message.getRoomId());
+
+        for (Room room : rooms) {
+            if(group != null) {
+                List<String> members = group.getMembers();
+                if(!members.contains(room.getSenderId())) continue;
+            }
+            if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                if (message.getContent() instanceof FileObject) room.setLatestMessage(message.getMessageType().toString());
+                else room.setLatestMessage(message.getContent().toString());
+                room.setTime(time);
+                room.setSender(true);
+                room.setNumberOfUnreadMessage(0);
+                Room roomRs = roomService.saveRoom(room);
+                UserNotify success = UserNotify.builder()
+                        .status("SUCCESS")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .room(roomRs)
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getSenderId(), "queue/messages",
+                        success
+                );
+            } else {
+                if (message.getContent() instanceof FileObject) {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(chatRequest.getSenderName() + ": " +message.getMessageType().toString());
+                    } else {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    }
+
+                } else {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(chatRequest.getSenderName() + ": " + message.getContent().toString());
+                    } else
+                        room.setLatestMessage(message.getContent().toString());
+                }
+                room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                room.setTime(time);
+                room.setSender(false);
+                roomService.saveRoom(room);
+            }
+        }
+
+        UserNotify sent = UserNotify.builder()
+                .status("SENT")
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .message(message)
+                .build();
+
         simpMessagingTemplate.convertAndSendToUser(
                 message.getReceiverId(), "queue/messages",
                 sent

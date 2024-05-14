@@ -1,10 +1,10 @@
 package com.project.chatbackend.models;
 
 public enum CallStatus {
-    START,
-    CALLING,
-    REJECT,
-    CANCEL,
-    MISSED,
-    END
+    START, // bắt đầu gọi, chưa accept
+    CALLING, // đang gọi
+    REJECT, // từ chối
+    CANCEL, // hủy
+    MISSED, // nhỡ
+    END // kết thúc
 }

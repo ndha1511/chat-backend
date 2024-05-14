@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ChatRequest {
     private String senderId;
     private String receiverId;
+    private String senderName;
     private String textContent;
     private MessageType messageType;
     private MessageStatus messageStatus;

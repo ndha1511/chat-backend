@@ -2,6 +2,7 @@ package com.project.chatbackend.models;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -17,6 +18,7 @@ public class Room {
     @Id
     private String id;
     @Field(name = "room_id")
+    @Indexed
     private String roomId;
     @Field(name = "sender_id")
     private String senderId;

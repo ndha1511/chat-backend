@@ -1,7 +1,6 @@
 package com.project.chatbackend.services;
 
-import com.project.chatbackend.exceptions.DataNotFoundException;
-import com.project.chatbackend.exceptions.PermissionAccessDenied;
+import com.project.chatbackend.exceptions.*;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
@@ -26,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -40,88 +40,31 @@ public class MessageService implements IMessageService {
     private final S3UploadService s3UploadService;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final CallHandler callHandler;
+    private final S3UploadAsync s3UploadAsync;
 
     @Override
     @Transactional
-    public void saveMessage(ChatRequest chatRequest, Message messageTmp) throws PermissionAccessDenied {
-        Group group = checkPermissionInChatGroup(chatRequest);
+    public void saveMessage(ChatRequest chatRequest, Message messageTmp, Group group) throws MaxFileSizeException {
+//        Group group = checkPermissionInChatGroup(chatRequest);
+//        User user = userRepository.findByEmail(chatRequest.getSenderId()).orElseThrow();
         Message message = convertToMessage(chatRequest);
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
-        User user = userRepository.findByEmail(chatRequest.getSenderId()).orElseThrow();
-        message.setSenderName(user.getName());
-        message.setSenderAvatar(user.getAvatar());
+
         try {
             if (chatRequest.getFileContent() != null) {
                 s3UploadService.uploadFile(chatRequest.getFileContent(), message);
             } else {
-                LocalDateTime time = LocalDateTime.now();
-                message.setMessageStatus(MessageStatus.SENT);
-                message.setSendDate(time);
-                messageRepository.save(message);
-                List<Room> rooms = roomService.findByRoomId(message.getRoomId());
-
-                for (Room room : rooms) {
-                    if(group != null) {
-                        List<String> members = group.getMembers();
-                        if(!members.contains(room.getSenderId())) continue;
-                    }
-                    if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                        if (message.getContent() instanceof FileObject) room.setLatestMessage(message.getMessageType().toString());
-                        else room.setLatestMessage(message.getContent().toString());
-                        room.setTime(time);
-                        room.setSender(true);
-                        room.setNumberOfUnreadMessage(0);
-                        Room roomRs = roomService.saveRoom(room);
-                        UserNotify success = UserNotify.builder()
-                                .status("SUCCESS")
-                                .senderId(message.getSenderId())
-                                .receiverId(message.getReceiverId())
-                                .message(message)
-                                .room(roomRs)
-                                .build();
-                        simpMessagingTemplate.convertAndSendToUser(
-                                message.getSenderId(), "queue/messages",
-                                success
-                        );
-                    } else {
-                        if (message.getContent() instanceof FileObject) {
-                            if(isGroupChat(room.getRoomId())) {
-                                room.setLatestMessage(user.getName() + ": " +message.getMessageType().toString());
-                            } else {
-                                room.setLatestMessage(message.getMessageType().toString());
-                            }
-
-                        } else {
-                            if(isGroupChat(room.getRoomId())) {
-                                room.setLatestMessage(user.getName() + ": " + message.getContent().toString());
-                            } else
-                                room.setLatestMessage(message.getContent().toString());
-                        }
-                        room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
-                        room.setTime(time);
-                        room.setSender(false);
-                        roomService.saveRoom(room);
-                    }
-                }
-
-                UserNotify sent = UserNotify.builder()
-                        .status("SENT")
-                        .senderId(message.getSenderId())
-                        .receiverId(message.getReceiverId())
-                        .message(message)
-                        .build();
-
-                simpMessagingTemplate.convertAndSendToUser(
-                        message.getReceiverId(), "queue/messages",
-                        sent
-                );
+                s3UploadAsync.saveMessageAsync(message, chatRequest, group);
             }
 
 
-        } catch (Exception e) {
+        } catch (MaxFileSizeException e) {
+            throw e;
+        }
+        catch (Exception e) {
             List<Room> rooms = roomService.findByRoomId(roomIdConvert);
             for (Room room : rooms) {
                 if (Objects.equals(room.getSenderId(), message.getSenderId())) {
@@ -138,9 +81,6 @@ public class MessageService implements IMessageService {
 
         }
 
-    }
-    public boolean isGroupChat(String roomId) {
-        return groupRepository.findById(roomId).isPresent();
     }
 
     private String getRoomIdConvert(String senderId, String receiverId) throws DataNotFoundException {
@@ -177,12 +117,21 @@ public class MessageService implements IMessageService {
             }
         }
 
+
         List<Message> messagesSend = messagePage.getContent().stream().filter(msg ->
                 msg.getSenderId().equals(senderId)
         ).toList();
         List<Message> messagesReceive = messagePage.getContent().stream().filter(msg ->
                 !msg.getSenderId().equals(senderId)
         ).toList();
+
+        Set<String> senderIds = messagesReceive.stream()
+                .map(Message::getSenderId)
+                .collect(Collectors.toSet());
+        Map<String, User> userMap = userRepository.findAllById(senderIds)
+                .stream()
+                .collect(Collectors.toMap(User::getEmail, user -> user));
+
         List<Message> messagesFilter = messagesReceive.stream().filter(msg ->
                 !msg.getMessageStatus().equals(MessageStatus.SENDING) &&
                         !msg.getMessageStatus().equals(MessageStatus.ERROR)
@@ -190,13 +139,15 @@ public class MessageService implements IMessageService {
         List<Message> results = Stream
                 .concat(messagesSend.stream(), messagesFilter.stream())
                 .sorted(Comparator.comparing(Message::getSendDate))
-//                .peek(msg -> {
-//                    if (!msg.getSenderId().equals(senderId)) {
-//                        User sender = userRepository.findByEmail(msg.getSenderId()).orElseThrow();
-//                        msg.setSenderAvatar(sender.getAvatar());
-//                        msg.setSenderName(sender.getName());
-//                    }
-//                })
+                .peek(msg -> {
+                    if (!msg.getSenderId().equals(senderId)) {
+                        User sender = userMap.get(msg.getSenderId());
+                        if (sender != null) {
+                            msg.setSenderAvatar(sender.getAvatar());
+                            msg.setSenderName(sender.getName());
+                        }
+                    }
+                })
                 .toList();
         return MessageResponse.builder()
                 .messages(results)
@@ -220,17 +171,42 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    public Message saveMessage(ChatRequest chatRequest) throws DataNotFoundException, PermissionAccessDenied {
+    public Map<String, Object> saveMessage(ChatRequest chatRequest) throws DataNotFoundException, PermissionAccessDenied, BlockUserException, BlockMessageToStranger {
+        Map<String, Object> result = new HashMap<>();
+        Group group = null;
+        checkPermissionChatUser(chatRequest);
         String roomId = getRoomIdConvert(chatRequest.getSenderId(), chatRequest.getReceiverId());
         Room room = roomRepository.findBySenderIdAndReceiverId(chatRequest.getSenderId(),
                 chatRequest.getReceiverId()).orElseThrow(() -> new DataNotFoundException("room not found"));
         if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
-            checkPermissionInChatGroup(chatRequest);
+            group = checkPermissionInChatGroup(chatRequest);
         }
         Message message = convertToMessage(chatRequest);
         message.setSendDate(LocalDateTime.now());
         message.setRoomId(roomId);
-        return messageRepository.save(message);
+        Message messageRs = messageRepository.save(message);
+        result.put("message", messageRs);
+        result.put("group", group);
+        return result;
+    }
+
+    private void checkPermissionChatUser(ChatRequest chatRequest) throws PermissionAccessDenied, BlockMessageToStranger, BlockUserException {
+        Optional<User> user = userRepository.findByEmail(chatRequest.getReceiverId());
+        if (user.isPresent()) {
+           if(user.get().isNotReceiveMessageToStranger()) {
+               List<String> friends = user.get().getFriends();
+               if(!friends.contains(chatRequest.getSenderId())) {
+                   throw new BlockMessageToStranger("user not receive message from stranger");
+               }
+           }
+           if(user.get().getBlockIds() != null) {
+               Set<String> blockIds = user.get().getBlockIds();
+               if(blockIds.contains(chatRequest.getSenderId())) {
+                   throw new BlockUserException("you are have been blocked");
+               }
+           }
+
+        }
     }
 
     private Group checkPermissionInChatGroup(ChatRequest chatRequest) throws PermissionAccessDenied {

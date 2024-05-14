@@ -1,7 +1,7 @@
 package com.project.chatbackend.controllers;
 
-import com.project.chatbackend.exceptions.DataNotFoundException;
-import com.project.chatbackend.exceptions.PermissionAccessDenied;
+import com.project.chatbackend.exceptions.*;
+import com.project.chatbackend.models.Group;
 import com.project.chatbackend.models.Message;
 import com.project.chatbackend.requests.*;
 import com.project.chatbackend.responses.MessageResponse;
@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -57,13 +58,21 @@ public class MessageController {
     public ResponseEntity<?> sendMessage(@ModelAttribute ChatRequest chatRequest, HttpServletRequest httpServletRequest) {
         try {
             authService.AuthenticationToken(httpServletRequest, chatRequest.getSenderId());
-            Message messageTmp = messageService.saveMessage(chatRequest);
-            messageService.saveMessage(chatRequest, messageTmp);
+            Map<String, Object> mapResult = messageService.saveMessage(chatRequest);
+            Message messageTmp = (Message) mapResult.get("message");
+            Group group = (Group) mapResult.get("group");
+            messageService.saveMessage(chatRequest, messageTmp, group);
             return ResponseEntity.ok(messageTmp);
         } catch (DataNotFoundException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (PermissionAccessDenied e) {
             return ResponseEntity.status(406).body(e.getMessage());
+        } catch (BlockUserException e) {
+            return ResponseEntity.status(410).body(e.getMessage());
+        } catch (BlockMessageToStranger e) {
+            return ResponseEntity.status(411).body(e.getMessage());
+        } catch (MaxFileSizeException e) {
+            return ResponseEntity.status(412).body(e.getMessage());
         }
     }
 

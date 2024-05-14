@@ -1,6 +1,7 @@
 package com.project.chatbackend.services;
 
 
+import com.project.chatbackend.exceptions.MaxFileSizeException;
 import com.project.chatbackend.models.Message;
 
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,10 @@ public class S3UploadService {
     private final S3UploadAsync s3UploadAsync;
 
 
-    public void uploadFile(MultipartFile file, Message message) throws IOException {
-        log.info("start uploading at {}", new Date(System.currentTimeMillis()));
+    public void uploadFile(MultipartFile file, Message message) throws IOException, MaxFileSizeException {
+        if(file.getSize() > 500 * 1024 * 1024) {
+            throw new MaxFileSizeException("file is too large! Maximum size is 500MB");
+        }
         AwsCredentialsProvider credentialsProvider = () -> AwsBasicCredentials.create(accessKey, secretKey);
         String fileName = file.getOriginalFilename();
         String key = generateUniqueKey(fileName);
@@ -52,7 +55,7 @@ public class S3UploadService {
         Map<String, String> fileInfo = new HashMap<>();
         fileInfo.put(key, "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key);
         assert fileName != null;
-        s3UploadAsync.uploadToS3(message, request, requestBody, s3Client, fileInfo, fileName);
+        s3UploadAsync.uploadToS3(message, request, requestBody, s3Client, fileInfo, fileName, file.getSize());
     }
 
     private String generateUniqueKey(String originalFileName) {

@@ -10,6 +10,5 @@ public class FileObject {
     private String fileKey;
     private String fileExtension;
     private String filePath;
-
-
+    private long size;
 }
