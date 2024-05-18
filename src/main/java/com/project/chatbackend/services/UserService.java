@@ -21,10 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -290,6 +287,25 @@ public class UserService implements IUserService {
                     .images(friend.getImages())
                     .build();
         }).toList();
+    }
+
+    @Override
+    public void blockUser(String senderId, String blockId) {
+        User user = userRepository.findByEmail(senderId).orElseThrow();
+        Set<String> blockUsers = user.getBlockIds();
+        blockUsers.add(blockId);
+        user.setBlockIds(blockUsers);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void unblockUser(String senderId, String unblockId) {
+        User user = userRepository.findByEmail(senderId).orElseThrow();
+        Set<String> blockUsers = user.getBlockIds();
+        blockUsers.remove(unblockId);
+        user.setBlockIds(blockUsers);
+        userRepository.save(user);
+
     }
 
     private boolean isValidPassword(String password, String passwordDb) {

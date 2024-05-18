@@ -1,7 +1,7 @@
 package com.project.chatbackend.services;
 
 import com.project.chatbackend.models.Message;
-import com.project.chatbackend.repositories.MessageRepositoryQuery;
+import com.project.chatbackend.repositories.IMessageRepositoryQuery;
 import com.project.chatbackend.responses.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,7 +13,7 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class MessageServiceQuery implements IMessageServiceQuery {
 
-    private final MessageRepositoryQuery messageRepositoryQuery;
+    private final IMessageRepositoryQuery messageRepositoryQuery;
     @Override
     public MessageResponse findByContentContaining(String roomId,
                                                          String content,

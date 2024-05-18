@@ -14,9 +14,10 @@ import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
-public class MessageRepositoryQuery {
+public class MessageRepositoryQuery implements IMessageRepositoryQuery {
     private final MongoTemplate mongoTemplate;
 
+    @Override
     public Page<Message> findByContentContaining(String roomId, String search, Date startDate, Date endDate, String senderId, Pageable pageable) {
         Query query = new Query();
         query.addCriteria(Criteria.where("room_id").is(roomId));

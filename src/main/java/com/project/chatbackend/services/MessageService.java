@@ -191,7 +191,7 @@ public class MessageService implements IMessageService {
         return result;
     }
 
-    private void checkPermissionChatUser(ChatRequest chatRequest) throws PermissionAccessDenied, BlockMessageToStranger, BlockUserException {
+    private void checkPermissionChatUser(ChatRequest chatRequest) throws BlockMessageToStranger, BlockUserException {
         Optional<User> user = userRepository.findByEmail(chatRequest.getReceiverId());
         if (user.isPresent()) {
            if(user.get().isNotReceiveMessageToStranger()) {
@@ -505,12 +505,12 @@ public class MessageService implements IMessageService {
         if (chatRequest.getFileContent() != null) {
             MultipartFile multipartFile = chatRequest.getFileContent();
             String fileName = multipartFile.getOriginalFilename();
-            System.out.println(multipartFile.getSize());
             assert fileName != null;
             String[] fileExtensions = fileName.split("\\.");
             FileObject fileObject = FileObject.builder()
                     .filename(fileExtensions[0])
                     .fileExtension(fileExtensions[fileExtensions.length - 1])
+                    .size(multipartFile.getSize())
                     .build();
             return Message.builder()
                     .senderId(chatRequest.getSenderId())
