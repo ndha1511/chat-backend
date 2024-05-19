@@ -25,7 +25,7 @@ public interface IMessageService {
     void forwardMessage(String messageId, String senderId, List<String> receiversId) throws DataNotFoundException;
     void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) throws DataNotFoundException;
     void seenMessage(String roomId, String senderId, String receiverId);
-    Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied;
+    Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied, BlockUserException, BlockMessageToStranger;
     void acceptCall(String messageId);
     void rejectCall(String messageId);
     void endCall(String messageId);

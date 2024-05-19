@@ -87,6 +87,10 @@ public class MessageController {
             return ResponseEntity.status(406).body(e.getMessage());
         } catch (DataNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
+        } catch (BlockUserException e) {
+            return ResponseEntity.status(410).body(e.getMessage());
+        } catch (BlockMessageToStranger e) {
+            return ResponseEntity.status(411).body(e.getMessage());
         }
 
     }

@@ -153,6 +153,7 @@ public class UserService implements IUserService {
                     .coverImage(user.getCoverImage())
                     .images(user.getImages())
                     .email(user.getEmail())
+                    .blockUsers(user.getBlockIds())
                     .friends(user.getFriends())
                     .build();
         }

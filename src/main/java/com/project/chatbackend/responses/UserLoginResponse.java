@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Builder
@@ -17,4 +18,5 @@ public class UserLoginResponse {
     private String dob;
     private List<String> friends;
     private List<String> images;
+    private Set<String> blockUsers;
 }

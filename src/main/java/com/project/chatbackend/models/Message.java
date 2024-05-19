@@ -36,8 +36,8 @@ public class Message {
     private List<EmojiMessage> emojis;
     @Field(name = "number_of_emojis")
     private int numberOfEmojis;
-    @Field(name = "messages_parent_id")
-    private String messagesParentId;
+    @Field(name = "messages_parent")
+    private Message messagesParent;
     @Field(name = "message_status")
     private MessageStatus messageStatus;
     @Field(name = "hidden_sender_side")

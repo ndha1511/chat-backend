@@ -1,5 +1,8 @@
 package com.project.chatbackend.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.project.chatbackend.exceptions.*;
 import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.GroupRepository;
@@ -376,8 +379,14 @@ public class MessageService implements IMessageService {
     }
 
     @Override
-    public Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied {
+    public Message saveCall(CallRequest callRequest) throws DataNotFoundException, PermissionAccessDenied, BlockUserException, BlockMessageToStranger {
         String roomId = getRoomIdConvert(callRequest.getSenderId(), callRequest.getReceiverId());
+        ChatRequest chatRequest = ChatRequest.builder()
+                .senderId(callRequest.getSenderId())
+                .receiverId(callRequest.getReceiverId())
+                .build();
+        checkPermissionInChatGroup(chatRequest);
+        checkPermissionChatUser(chatRequest);
         Room room = roomRepository.findBySenderIdAndReceiverId(callRequest.getSenderId(),
                 callRequest.getReceiverId()).orElseThrow(() -> new DataNotFoundException("room not found"));
         CallInfo callInfo = CallInfo.builder()
@@ -397,11 +406,6 @@ public class MessageService implements IMessageService {
         Message messageRs = messageRepository.save(message);
         List<Room> rooms = roomRepository.findByRoomId(roomId);
         if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
-            ChatRequest chatRequest = ChatRequest.builder()
-                    .senderId(callRequest.getSenderId())
-                    .receiverId(callRequest.getReceiverId())
-                    .build();
-            checkPermissionInChatGroup(chatRequest);
             for (Room roomGroup : rooms) {
                 if(roomGroup.getSenderId().equals(callRequest.getSenderId())) {
                     roomGroup.setLatestMessage("Đã bắt đầu cuộc gọi nhóm");
@@ -512,6 +516,7 @@ public class MessageService implements IMessageService {
                     .fileExtension(fileExtensions[fileExtensions.length - 1])
                     .size(multipartFile.getSize())
                     .build();
+
             return Message.builder()
                     .senderId(chatRequest.getSenderId())
                     .receiverId(chatRequest.getReceiverId())
@@ -520,12 +525,23 @@ public class MessageService implements IMessageService {
                     .content(fileObject)
                     .build();
         }
+        Message messageParent = null;
+        if(chatRequest.getMessageParent() != null) {
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
+            try {
+                messageParent =  objectMapper.readValue(chatRequest.getMessageParent(), Message.class);
+            } catch (JsonProcessingException e) {
+                log.error(e.getMessage());
+            }
+        }
         return Message.builder()
                 .senderId(chatRequest.getSenderId())
                 .receiverId(chatRequest.getReceiverId())
                 .messageType(chatRequest.getMessageType())
                 .messageStatus(MessageStatus.SENDING)
                 .content(chatRequest.getTextContent())
+                .messagesParent(messageParent)
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package com.project.chatbackend.controllers;
 
 import com.project.chatbackend.exceptions.PermissionAccessDenied;
+import com.project.chatbackend.requests.BlockUserRequest;
 import com.project.chatbackend.requests.ChangePasswordRequest;
 import com.project.chatbackend.requests.UserUpdateRequest;
 import com.project.chatbackend.responses.UserLoginResponse;
@@ -108,14 +109,13 @@ public class UserController {
 
     @PutMapping("/blockUser")
     public ResponseEntity<?> blockUser(
-            @RequestParam String senderId,
-            @RequestParam String blockId,
+            @RequestBody BlockUserRequest blockUserRequest,
             HttpServletRequest httpServletRequest
     ) {
         try {
-            authService.AuthenticationToken(httpServletRequest, senderId);
-            userService.blockUser(senderId, blockId);
-            return ResponseEntity.ok("blocked user with id: " + blockId);
+            authService.AuthenticationToken(httpServletRequest, blockUserRequest.getSenderId());
+            userService.blockUser(blockUserRequest.getSenderId(), blockUserRequest.getBlockId());
+            return ResponseEntity.ok("blocked user with id: " + blockUserRequest.getBlockId());
         } catch (PermissionAccessDenied e) {
             return ResponseEntity.status(406).body(e.getMessage());
         }
@@ -123,14 +123,13 @@ public class UserController {
 
     @PutMapping("/unblockUser")
     public ResponseEntity<?> unblockUser(
-            @RequestParam String senderId,
-            @RequestParam String unblockId,
+            @RequestBody BlockUserRequest blockUserRequest,
             HttpServletRequest httpServletRequest
     ) {
         try {
-            authService.AuthenticationToken(httpServletRequest, senderId);
-            userService.unblockUser(senderId, unblockId);
-            return ResponseEntity.ok("unblocked user with id: " + unblockId);
+            authService.AuthenticationToken(httpServletRequest, blockUserRequest.getSenderId());
+            userService.unblockUser(blockUserRequest.getSenderId(), blockUserRequest.getBlockId());
+            return ResponseEntity.ok("unblocked user with id: " + blockUserRequest.getBlockId());
         } catch (PermissionAccessDenied e) {
             return ResponseEntity.status(406).body(e.getMessage());
         }

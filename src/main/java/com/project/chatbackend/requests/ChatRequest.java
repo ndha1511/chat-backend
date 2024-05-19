@@ -1,5 +1,6 @@
 package com.project.chatbackend.requests;
 
+import com.project.chatbackend.models.Message;
 import com.project.chatbackend.models.MessageStatus;
 import com.project.chatbackend.models.MessageType;
 import lombok.Builder;
@@ -19,5 +20,6 @@ public class ChatRequest {
     private MessageStatus messageStatus;
     private MultipartFile fileContent;
     private boolean hiddenSenderSide;
+    private String messageParent;
 
 }
