@@ -274,10 +274,7 @@ public class MessageService implements IMessageService {
                     room.setSender(false);
                     roomService.saveRoom(room);
                 } else {
-                    if (message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setLatestMessage(message.getContent().toString());
+                    room.setLatestMessage("Tin nhắn đã thu hồi");
                     room.setTime(LocalDateTime.now());
                     room.setSender(true);
                     room.setNumberOfUnreadMessage(0);
