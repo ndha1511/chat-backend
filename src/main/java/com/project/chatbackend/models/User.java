@@ -9,7 +9,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Document(collection = "users")
 @Getter @Setter
@@ -20,10 +22,10 @@ public class User {
     private boolean gender;
     @Field(name = "date_of_birth")
     private LocalDate dateOfBirth;
-    @Indexed
     @Field(name = "phone_number")
     private String phoneNumber;
     @Id
+    @Indexed
     private String email;
     private String password;
     private String avatar;
@@ -41,7 +43,10 @@ public class User {
     private String coverImage;
     @Field(name = "verify")
     private boolean isVerified;
-
+    @Field(name = "block_ids")
+    private Set<String> blockIds = new HashSet<>();
+    @Field(name = "not_receive_message_to_stranger")
+    private boolean notReceiveMessageToStranger;
 
 
 }

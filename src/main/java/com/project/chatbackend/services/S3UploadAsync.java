@@ -4,20 +4,17 @@ import com.project.chatbackend.models.*;
 import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.ChatRequest;
 import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.waiters.WaiterResponse;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.waiters.S3Waiter;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CompletedFileUpload;
+import software.amazon.awssdk.transfer.s3.model.FileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,8 +27,6 @@ import java.util.Objects;
 public class S3UploadAsync {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
-    @Value("${amazon-properties.bucket-name}")
-    private String bucketName;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final RoomService roomService;
     private final MessageRepository messageRepository;
@@ -39,10 +34,11 @@ public class S3UploadAsync {
 
     @Async
     public void uploadToS3(Message message,
-                           PutObjectRequest request,
-                           RequestBody requestBody,
-                           S3Client s3Client, Map<String, String> fileInfo,
-                           String filename) {
+                           S3TransferManager transferManager,
+                           UploadFileRequest uploadFileRequest,
+                           Map<String, String> fileInfo,
+                           String filename,
+                           long filSize) {
         String fileKey = fileInfo.keySet().stream().findFirst().orElseThrow();
         String filePath = fileInfo.get(fileKey);
         String fileName = Objects.requireNonNull(filename.split("\\."))[0];
@@ -52,13 +48,12 @@ public class S3UploadAsync {
                 .fileExtension(extension[extension.length - 1])
                 .filePath(filePath)
                 .filename(fileName)
+                .size(filSize)
                 .build();
-        s3Client.putObject(request, requestBody);
-        S3Waiter s3Waiter = s3Client.waiter();
-        HeadObjectRequest waitRequest = HeadObjectRequest.builder()
-                .bucket(bucketName).key(fileKey).build();
-        WaiterResponse<HeadObjectResponse> waiterResponse = s3Waiter.waitUntilObjectExists(waitRequest);
-        waiterResponse.matched().response().ifPresent(x -> log.info("File uploaded to S3 - Key: {}, Bucket: {}", fileKey, bucketName));
+        FileUpload fileUpload = transferManager.uploadFile(uploadFileRequest);
+        CompletedFileUpload uploadResult = fileUpload.completionFuture().join();
+        log.info("upload successfully: " + uploadResult.response().eTag());
+        transferManager.close();
         message.setContent(fileObject);
         message.setMessageStatus(MessageStatus.SENT);
         LocalDateTime time = LocalDateTime.now();
@@ -81,7 +76,18 @@ public class S3UploadAsync {
                 room.setTime(time);
                 room.setSender(true);
                 room.setNumberOfUnreadMessage(0);
-                roomService.saveRoom(room);
+                Room roomRs = roomService.saveRoom(room);
+                UserNotify success = UserNotify.builder()
+                        .status("SUCCESS")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .room(roomRs)
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getSenderId(), "queue/messages",
+                        success
+                );
             } else {
                 User user = userRepository.findByEmail(message.getSenderId()).orElseThrow();
                 if (message.getContent() instanceof FileObject) {
@@ -103,12 +109,7 @@ public class S3UploadAsync {
                 roomService.saveRoom(room);
             }
         }
-        UserNotify success = UserNotify.builder()
-                .status("SUCCESS")
-                .senderId(message.getSenderId())
-                .receiverId(message.getReceiverId())
-                .message(message)
-                .build();
+
         UserNotify sent = UserNotify.builder()
                 .status("SENT")
                 .senderId(message.getSenderId())
@@ -116,9 +117,70 @@ public class S3UploadAsync {
                 .message(message)
                 .build();
         simpMessagingTemplate.convertAndSendToUser(
-                message.getSenderId(), "queue/messages",
-                success
+                message.getReceiverId(), "queue/messages",
+                sent
         );
+    }
+
+    @Async
+    public void saveMessageAsync(Message message, ChatRequest chatRequest, Group group) {
+        LocalDateTime time = LocalDateTime.now();
+        message.setMessageStatus(MessageStatus.SENT);
+        message.setSendDate(time);
+        messageRepository.save(message);
+        List<Room> rooms = roomService.findByRoomId(message.getRoomId());
+
+        for (Room room : rooms) {
+            if(group != null) {
+                List<String> members = group.getMembers();
+                if(!members.contains(room.getSenderId())) continue;
+            }
+            if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+                if (message.getContent() instanceof FileObject) room.setLatestMessage(message.getMessageType().toString());
+                else room.setLatestMessage(message.getContent().toString());
+                room.setTime(time);
+                room.setSender(true);
+                room.setNumberOfUnreadMessage(0);
+                Room roomRs = roomService.saveRoom(room);
+                UserNotify success = UserNotify.builder()
+                        .status("SUCCESS")
+                        .senderId(message.getSenderId())
+                        .receiverId(message.getReceiverId())
+                        .message(message)
+                        .room(roomRs)
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        message.getSenderId(), "queue/messages",
+                        success
+                );
+            } else {
+                if (message.getContent() instanceof FileObject) {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(chatRequest.getSenderName() + ": " +message.getMessageType().toString());
+                    } else {
+                        room.setLatestMessage(message.getMessageType().toString());
+                    }
+
+                } else {
+                    if(isGroupChat(room.getRoomId())) {
+                        room.setLatestMessage(chatRequest.getSenderName() + ": " + message.getContent().toString());
+                    } else
+                        room.setLatestMessage(message.getContent().toString());
+                }
+                room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
+                room.setTime(time);
+                room.setSender(false);
+                roomService.saveRoom(room);
+            }
+        }
+
+        UserNotify sent = UserNotify.builder()
+                .status("SENT")
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .message(message)
+                .build();
+
         simpMessagingTemplate.convertAndSendToUser(
                 message.getReceiverId(), "queue/messages",
                 sent

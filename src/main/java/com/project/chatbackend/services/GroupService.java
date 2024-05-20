@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.stream.Stream;
 
 @Service
@@ -240,6 +241,8 @@ public class GroupService implements IGroupService {
         members.remove(memberId);
         group.setMembers(members);
         group.setNumberOfMembers(members.size());
+        admins.remove(memberId);
+        group.setAdmins(admins);
         group.setUpdatedAt(LocalDateTime.now());
         groupRepository.save(group);
 
@@ -331,11 +334,10 @@ public class GroupService implements IGroupService {
         LocalDateTime time = LocalDateTime.now();
         group.setUpdatedAt(time);
 
-        User owner = userRepository.findByEmail(ownerId).orElseThrow(() -> new DataNotFoundException("owner not found"));
         User admin = userRepository.findByEmail(adminId).orElseThrow(() -> new DataNotFoundException("admin not found"));
 
         Message message = Message.builder()
-                .content(admin.getName() + " đã được " + owner.getName() + " phong làm phó nhóm")
+                .content(admin.getName() + " đã trở thành phó nhóm")
                 .messageType(MessageType.SYSTEM)
                 .sendDate(LocalDateTime.now())
                 .senderId("system@gmail.com")
@@ -350,6 +352,7 @@ public class GroupService implements IGroupService {
                     .findBySenderIdAndReceiverId(memberId, groupId)
                     .orElseThrow();
             room.setTime(time);
+            room.setSender(false);
             room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
         }
@@ -382,11 +385,10 @@ public class GroupService implements IGroupService {
         LocalDateTime time = LocalDateTime.now();
         group.setUpdatedAt(time);
 
-        User owner = userRepository.findByEmail(ownerId).orElseThrow(() -> new DataNotFoundException("owner not found"));
         User admin = userRepository.findByEmail(adminId).orElseThrow(() -> new DataNotFoundException("admin not found"));
 
         Message message = Message.builder()
-                .content(admin.getName() + " đã được " + owner.getName() + " giáng chức làm thành viên")
+                .content(admin.getName() + " không còn là phó nhóm")
                 .messageType(MessageType.SYSTEM)
                 .sendDate(LocalDateTime.now())
                 .senderId("system@gmail.com")
@@ -401,6 +403,7 @@ public class GroupService implements IGroupService {
                     .findBySenderIdAndReceiverId(memberId, groupId)
                     .orElseThrow();
             room.setTime(time);
+            room.setSender(false);
             room.setLatestMessage(message.getContent().toString());
             roomRepository.save(room);
         }
@@ -458,10 +461,10 @@ public class GroupService implements IGroupService {
     @Override
     @Transactional
     public void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied {
+        String messageString = "";
         Optional<Group> optionalGroup = groupRepository.findById(groupId);
         if(optionalGroup.isEmpty()) throw new DataNotFoundException("group not found");
         Group group = optionalGroup.get();
-        if(group.getOwner().equals(memberId)) throw new PermissionAccessDenied("owner can't leave group");
         List<String> membersBefore = new ArrayList<>(group.getMembers());
         List<String> members = group.getMembers();
         if(!members.contains(memberId)) throw new PermissionAccessDenied("you are not member in group");
@@ -471,12 +474,21 @@ public class GroupService implements IGroupService {
         admins.remove(memberId);
         group.setAdmins(admins);
         group.setNumberOfMembers(members.size());
+        if(group.getOwner().equals(memberId)) {
+            Random random = new Random();
+            int randomIndex = random.nextInt(members.size());
+            String newOwner = members.get(randomIndex);
+            User userOwner = userRepository.findByEmail(newOwner).orElseThrow();
+            group.setOwner(newOwner);
+            messageString = userOwner.getName() + " đã trở thành trưởng nhóm";
+        }
         LocalDateTime time = LocalDateTime.now();
         group.setUpdatedAt(time);
         groupRepository.save(group);
         User member = userRepository.findByEmail(memberId).orElseThrow(() -> new DataNotFoundException("user not found"));
         Message message = Message.builder()
-                .content(member.getName() + " đã rời nhóm")
+                .content(messageString.isEmpty() ? member.getName() + " đã rời nhóm" :
+                        member.getName() + " đã rời nhóm" + ", " + messageString)
                 .messageType(MessageType.SYSTEM)
                 .sendDate(LocalDateTime.now())
                 .senderId("system@gmail.com")
@@ -494,12 +506,12 @@ public class GroupService implements IGroupService {
                 room.setRoomStatus(RoomStatus.INACTIVE);
                 room.setLatestMessage("Bạn đã rời nhóm");
                 room.setNumberOfUnreadMessage(0);
-                room.setSender(false);
                 roomLeave = room;
 
             } else {
                 room.setLatestMessage(message.getContent().toString());
             }
+            room.setSender(false);
             room.setTime(time);
             roomRepository.save(room);
 
