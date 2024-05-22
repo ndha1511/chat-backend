@@ -90,7 +90,7 @@ public class UserController {
                 return ResponseEntity.badRequest().body(errMessages);
             }
             userService.updateUser(updateUserRequest);
-            return ResponseEntity.ok("update user successfully");
+            return ResponseEntity.ok(userService.updateUser(updateUserRequest));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

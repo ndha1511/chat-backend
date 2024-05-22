@@ -54,6 +54,7 @@ public class MessageService implements IMessageService {
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
         message.setSenderAvatar(chatRequest.getSenderAvatar());
+        message.setSenderName(chatRequest.getSenderName());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
 
@@ -262,6 +263,8 @@ public class MessageService implements IMessageService {
                 .findTopByOrderBySendDateDesc()
                 .getId().equals(messageId);
         List<Room> rooms = roomRepository.findByRoomId(message.getRoomId());
+        message.setMessageStatus(MessageStatus.REVOKED);
+        Message messageRs = messageRepository.save(message);
         if (isLatestMessage) {
             for (Room room : rooms) {
                 if (!room.getSenderId().equals(senderId)) {
@@ -278,13 +281,32 @@ public class MessageService implements IMessageService {
                     room.setTime(LocalDateTime.now());
                     room.setSender(true);
                     room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
-
+                    Room roomSender = roomService.saveRoom(room);
+                    UserNotify success = UserNotify.builder()
+                            .senderId(message.getSenderId())
+                            .receiverId(message.getReceiverId())
+                            .status("SUCCESS")
+                            .message(messageRs)
+                            .room(roomSender)
+                            .build();
+                    simpMessagingTemplate.convertAndSendToUser(
+                            senderId, "queue/messages",
+                            success
+                    );
                 }
             }
         }
-        message.setMessageStatus(MessageStatus.REVOKED);
-        messageRepository.save(message);
+        UserNotify success = UserNotify.builder()
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .status("SENT")
+                .message(messageRs)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                receiverId, "queue/messages",
+                success
+        );
+
         UserNotify revoke = UserNotify.builder()
                 .senderId(message.getSenderId())
                 .receiverId(message.getReceiverId())
@@ -506,6 +528,16 @@ public class MessageService implements IMessageService {
     public void endCall(String messageId) {
         Message message = messageRepository.findById(messageId).orElseThrow();
         callHandler.endCall(message);
+    }
+
+    @Override
+    public void receiveMessage(Message message) {
+        messageRepository.save(message);
+        UserNotify messageReceive = UserNotify.builder()
+                .status("RECEIVED_MESSAGE")
+                .message(message)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(message.getSenderId(), "/queue/messages", messageReceive);
     }
 
 

@@ -5,6 +5,7 @@ import com.project.chatbackend.calls.AnswerMessage;
 import com.project.chatbackend.calls.Call;
 import com.project.chatbackend.calls.CandidateMessage;
 import com.project.chatbackend.calls.OfferMessage;
+import com.project.chatbackend.responses.TypingChat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -44,6 +45,14 @@ public class CallController {
                 .convertAndSendToUser(candidate.getReceiverId(),
                         "/topic/candidate",candidate);
     }
+
+    @MessageMapping("/typing")
+    public void typing(@Payload TypingChat typingChat) {
+        simpMessagingTemplate
+                .convertAndSendToUser(typingChat.getReceiverId(),
+                        "/queue/messages",typingChat);
+    }
+
 
 
 }

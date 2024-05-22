@@ -213,6 +213,12 @@ public class MessageController {
         }
     }
 
+    @PutMapping("/receiveMessage")
+    public ResponseEntity<?> receiveMessage(@RequestBody Message message) {
+        messageService.receiveMessage(message);
+        return ResponseEntity.ok("receive message successfully");
+    }
+
 
 
 
