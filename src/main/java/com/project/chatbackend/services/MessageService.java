@@ -54,6 +54,9 @@ public class MessageService implements IMessageService {
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
         message.setSenderAvatar(chatRequest.getSenderAvatar());
+        if(Objects.equals(chatRequest.getSenderAvatar(), "null") || chatRequest.getSenderAvatar() == null) {
+            message.setSenderAvatar("");
+        }
         message.setSenderName(chatRequest.getSenderName());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
@@ -528,6 +531,12 @@ public class MessageService implements IMessageService {
     public void endCall(String messageId) {
         Message message = messageRepository.findById(messageId).orElseThrow();
         callHandler.endCall(message);
+    }
+
+    @Override
+    public void cancelCall(String messageId) {
+        Message message = messageRepository.findById(messageId).orElseThrow();
+        callHandler.cancelCall(message);
     }
 
     @Override

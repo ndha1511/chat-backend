@@ -87,6 +87,34 @@ public class CallHandler {
         notify(message.getSenderId(), message.getReceiverId(), "END_CALL");
     }
 
+    public void cancelCall(Message message) {
+        scheduledExecutorService.shutdownNow();
+        CallInfo callInfo = (CallInfo) message.getContent();
+        callInfo.setCallStatus(CallStatus.CANCEL);
+        message.setContent(callInfo);
+        Message newMessage = messageRepository.save(message);
+        Message latestMessage = messageRepository.findTopByOrderBySendDateDesc();
+        if(latestMessage.getId().equals(newMessage.getId())) {
+            List<Room> rooms = roomRepository.findByRoomId(newMessage.getRoomId());
+            for (Room room : rooms) {
+                if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
+                    if (room.getSenderId().equals(newMessage.getSenderId())) {
+                        room.setLatestMessage("đã hủy cuộc gọi");
+                    } else {
+                        User sender = userRepository.findByEmail(newMessage.getSenderId())
+                                .orElseThrow();
+                        room.setLatestMessage(sender.getName() + ": đã hủy cuộc gọi");
+                    }
+                } else {
+                    room.setLatestMessage("Đã hủy cuộc gọi");
+                }
+                roomRepository.save(room);
+            }
+        }
+        notify(message.getSenderId(), message.getReceiverId(), "CANCEL_CALL");
+
+    }
+
     public void rejectCall(Message message) {
         scheduledExecutorService.shutdownNow();
         CallInfo callInfo = (CallInfo) message.getContent();
@@ -99,7 +127,7 @@ public class CallHandler {
             for (Room room : rooms) {
                 if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
                     if (room.getSenderId().equals(newMessage.getSenderId())) {
-                        room.setLatestMessage("Cuộc gọi đến");
+                        room.setLatestMessage("Cuộc gọi thoại đi");
                     } else {
                         User sender = userRepository.findByEmail(newMessage.getSenderId())
                                 .orElseThrow();

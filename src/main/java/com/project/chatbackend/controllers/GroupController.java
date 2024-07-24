@@ -6,6 +6,7 @@ import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.requests.AddMemberRequest;
 import com.project.chatbackend.requests.CreateGroupRequest;
 import com.project.chatbackend.requests.GroupActionRequest;
+import com.project.chatbackend.requests.UpdateGroupRequest;
 import com.project.chatbackend.services.AuthService;
 import com.project.chatbackend.services.IGroupService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,12 @@ public class GroupController {
         }
 
     }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> updateGroup(@PathVariable String id, @RequestBody UpdateGroupRequest updateGroupRequest) {
+        return ResponseEntity.ok(groupService.updateGroup(id, updateGroupRequest));
+    }
+
 
     @PostMapping("/addMember")
     public ResponseEntity<?> addMemberToGroup(@RequestBody AddMemberRequest addMemberRequest,

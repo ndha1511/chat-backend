@@ -153,6 +153,7 @@ public class UserService implements IUserService {
                     .images(user.getImages())
                     .email(user.getEmail())
                     .blockUsers(user.getBlockIds())
+                    .notReceiveMessageToStranger(user.isNotReceiveMessageToStranger())
                     .friends(user.getFriends())
                     .build();
         }
@@ -170,6 +171,7 @@ public class UserService implements IUserService {
                         .gender(user.isGender())
                         .coverImage(user.getCoverImage())
                         .images(user.getImages())
+                        .notReceiveMessageToStranger(user.isNotReceiveMessageToStranger())
                         .build())
                 .orElseThrow(() -> new DataNotFoundException("user not found"));
     }
@@ -255,7 +257,7 @@ public class UserService implements IUserService {
     }
 
     @Override
-    public User updateUser(UserUpdateRequest updateUserRequest) throws Exception {
+    public UserLoginResponse updateUser(UserUpdateRequest updateUserRequest) throws Exception {
         Optional<User> optionalUser = userRepository.findByEmail(updateUserRequest.getEmail());
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
@@ -263,7 +265,9 @@ public class UserService implements IUserService {
             user.setGender(updateUserRequest.isGender());
             user.setAvatar(updateUserRequest.getAvatar());
             user.setDateOfBirth(updateUserRequest.getDob());
-            return userRepository.save(user);
+            user.setNotReceiveMessageToStranger(updateUserRequest.isNotReceiveMessageToStranger());
+            User newUser = userRepository.save(user);
+            return convertUserResponse(Optional.of(newUser));
         }else {
             throw new DataNotFoundException("user not found");
         }
@@ -306,6 +310,26 @@ public class UserService implements IUserService {
         user.setBlockIds(blockUsers);
         userRepository.save(user);
 
+    }
+
+    @Override
+    public List<UserLoginResponse> getBlocksUser(String userId) {
+        Optional<User> optionalUser = userRepository.findByEmail(userId);
+        User user = optionalUser.orElseThrow();
+        Set<String> listFriends = user.getBlockIds();
+        return listFriends.stream().map(id -> {
+            Optional<User> optionalFriend = userRepository.findByEmail(id);
+            User friend = optionalFriend.orElseThrow();
+            return UserLoginResponse.builder()
+                    .email(friend.getEmail())
+                    .dob(String.valueOf(friend.getDateOfBirth()))
+                    .avatar(friend.getAvatar())
+                    .gender(friend.isGender())
+                    .name(friend.getName())
+                    .coverImage(friend.getCoverImage())
+                    .images(friend.getImages())
+                    .build();
+        }).toList();
     }
 
     private boolean isValidPassword(String password, String passwordDb) {

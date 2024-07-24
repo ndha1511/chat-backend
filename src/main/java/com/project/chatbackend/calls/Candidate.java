@@ -12,6 +12,7 @@ import lombok.Setter;
 public class Candidate {
     private String type;
     private String label;
+    private String sdpMid;
     private String id;
 
 }

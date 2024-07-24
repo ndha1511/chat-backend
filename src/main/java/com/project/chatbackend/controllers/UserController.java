@@ -89,7 +89,6 @@ public class UserController {
                         .toList();
                 return ResponseEntity.badRequest().body(errMessages);
             }
-            userService.updateUser(updateUserRequest);
             return ResponseEntity.ok(userService.updateUser(updateUserRequest));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -133,6 +132,11 @@ public class UserController {
         } catch (PermissionAccessDenied e) {
             return ResponseEntity.status(406).body(e.getMessage());
         }
+    }
+
+    @GetMapping("/blocks/{userId}")
+    public ResponseEntity<?> getBlocks(@PathVariable String userId) {
+        return ResponseEntity.ok(userService.getBlocksUser(userId));
     }
 
 

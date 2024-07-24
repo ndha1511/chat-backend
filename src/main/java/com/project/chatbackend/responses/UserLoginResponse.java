@@ -19,4 +19,5 @@ public class UserLoginResponse {
     private List<String> friends;
     private List<String> images;
     private Set<String> blockUsers;
+    private boolean notReceiveMessageToStranger;
 }

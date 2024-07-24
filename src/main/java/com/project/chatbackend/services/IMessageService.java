@@ -28,5 +28,6 @@ public interface IMessageService {
     void acceptCall(String messageId);
     void rejectCall(String messageId);
     void endCall(String messageId);
+    void cancelCall(String messageId);
     void receiveMessage(Message message);
 }
