@@ -113,6 +113,12 @@ public class MessageController {
         return ResponseEntity.ok("stopped");
     }
 
+    @GetMapping("/cancelCall/{messageId}")
+    public ResponseEntity<?> cancelCall(@PathVariable String messageId) {
+        messageService.cancelCall(messageId);
+        return ResponseEntity.ok("stopped");
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<?> updateMessage(@PathVariable String id, @RequestBody ChatRequest chatRequest) {
         try {
@@ -212,6 +218,14 @@ public class MessageController {
             return ResponseEntity.badRequest().body("date invalid");
         }
     }
+
+    @PutMapping("/receiveMessage")
+    public ResponseEntity<?> receiveMessage(@RequestBody Message message) {
+        messageService.receiveMessage(message);
+        return ResponseEntity.ok("receive message successfully");
+    }
+
+
 
 
 

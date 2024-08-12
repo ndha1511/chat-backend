@@ -54,6 +54,10 @@ public class MessageService implements IMessageService {
         message.setId(messageTmp.getId());
         message.setRoomId(messageTmp.getRoomId());
         message.setSenderAvatar(chatRequest.getSenderAvatar());
+        if(Objects.equals(chatRequest.getSenderAvatar(), "null") || chatRequest.getSenderAvatar() == null) {
+            message.setSenderAvatar("");
+        }
+        message.setSenderName(chatRequest.getSenderName());
         String roomIdConvert = message.getRoomId();
         message.setRoomId(roomIdConvert);
 
@@ -67,21 +71,20 @@ public class MessageService implements IMessageService {
 
         } catch (MaxFileSizeException e) {
             throw e;
-        }
-        catch (Exception e) {
-            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
-            for (Room room : rooms) {
-                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
-                    if (message.getContent() instanceof FileObject fileObject) {
-                        room.setLatestMessage(fileObject.getFilename());
-                    } else room.setLatestMessage(message.getContent().toString());
-                    room.setTime(LocalDateTime.now());
-                    room.setSender(true);
-                    room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
-                    break;
-                }
-            }
+        } catch (Exception e) {
+//            List<Room> rooms = roomService.findByRoomId(roomIdConvert);
+//            for (Room room : rooms) {
+//                if (Objects.equals(room.getSenderId(), message.getSenderId())) {
+//                    if (message.getContent() instanceof FileObject fileObject) {
+//                        room.setLatestMessage(fileObject.getFilename());
+//                    } else room.setLatestMessage(message.getContent().toString());
+//                    room.setTime(LocalDateTime.now());
+//                    room.setSender(true);
+//                    room.setNumberOfUnreadMessage(0);
+//                    roomService.saveRoom(room);
+//                    break;
+//                }
+//            }
 
         }
 
@@ -113,7 +116,7 @@ public class MessageService implements IMessageService {
                         .build();
             }
             // nếu user không có trong group => không trả về message
-            if(!members.contains(senderId)) {
+            if (!members.contains(senderId)) {
                 return MessageResponse.builder()
                         .messages(new ArrayList<>())
                         .totalPage(0)
@@ -161,7 +164,6 @@ public class MessageService implements IMessageService {
     }
 
 
-
     @Override
     public void updateMessage(String id, ChatRequest chatRequest) {
         Message message = convertToMessage(chatRequest);
@@ -197,18 +199,18 @@ public class MessageService implements IMessageService {
     private void checkPermissionChatUser(ChatRequest chatRequest) throws BlockMessageToStranger, BlockUserException {
         Optional<User> user = userRepository.findByEmail(chatRequest.getReceiverId());
         if (user.isPresent()) {
-           if(user.get().isNotReceiveMessageToStranger()) {
-               List<String> friends = user.get().getFriends();
-               if(!friends.contains(chatRequest.getSenderId())) {
-                   throw new BlockMessageToStranger("user not receive message from stranger");
-               }
-           }
-           if(user.get().getBlockIds() != null) {
-               Set<String> blockIds = user.get().getBlockIds();
-               if(blockIds.contains(chatRequest.getSenderId())) {
-                   throw new BlockUserException("you are have been blocked");
-               }
-           }
+            if (user.get().isNotReceiveMessageToStranger()) {
+                List<String> friends = user.get().getFriends();
+                if (!friends.contains(chatRequest.getSenderId())) {
+                    throw new BlockMessageToStranger("user not receive message from stranger");
+                }
+            }
+            if (user.get().getBlockIds() != null) {
+                Set<String> blockIds = user.get().getBlockIds();
+                if (blockIds.contains(chatRequest.getSenderId())) {
+                    throw new BlockUserException("you are have been blocked");
+                }
+            }
 
         }
     }
@@ -221,7 +223,7 @@ public class MessageService implements IMessageService {
 
             Group group = optionalGroup.get();
             // kiểm tra group có active hay không
-            if(group.getGroupStatus().equals(GroupStatus.INACTIVE))
+            if (group.getGroupStatus().equals(GroupStatus.INACTIVE))
                 throw new PermissionAccessDenied("group inactive");
             // kiểm tra user có trong group hay không
             List<String> members = group.getMembers();
@@ -260,8 +262,54 @@ public class MessageService implements IMessageService {
         Message message = optionalMessage.orElseThrow();
         if (!message.getSenderId().equals(senderId))
             throw new PermissionAccessDenied("permission access denied");
+        boolean isLatestMessage = messageRepository
+                .findTopByOrderBySendDateDesc()
+                .getId().equals(messageId);
+        List<Room> rooms = roomRepository.findByRoomId(message.getRoomId());
         message.setMessageStatus(MessageStatus.REVOKED);
-        messageRepository.save(message);
+        Message messageRs = messageRepository.save(message);
+        if (isLatestMessage) {
+            for (Room room : rooms) {
+                if (!room.getSenderId().equals(senderId)) {
+                    if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
+                        User user = userRepository.findByEmail(senderId).orElseThrow();
+                        room.setLatestMessage(user.getName() + ": " + "Tin nhắn đã thu hồi");
+                    } else {
+                        room.setLatestMessage("Tin nhắn đã thu hồi");
+                    }
+                    room.setSender(false);
+                    roomService.saveRoom(room);
+                } else {
+                    room.setLatestMessage("Tin nhắn đã thu hồi");
+                    room.setTime(LocalDateTime.now());
+                    room.setSender(true);
+                    room.setNumberOfUnreadMessage(0);
+                    Room roomSender = roomService.saveRoom(room);
+                    UserNotify success = UserNotify.builder()
+                            .senderId(message.getSenderId())
+                            .receiverId(message.getReceiverId())
+                            .status("SUCCESS")
+                            .message(messageRs)
+                            .room(roomSender)
+                            .build();
+                    simpMessagingTemplate.convertAndSendToUser(
+                            senderId, "queue/messages",
+                            success
+                    );
+                }
+            }
+        }
+        UserNotify success = UserNotify.builder()
+                .senderId(message.getSenderId())
+                .receiverId(message.getReceiverId())
+                .status("SENT")
+                .message(messageRs)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(
+                receiverId, "queue/messages",
+                success
+        );
+
         UserNotify revoke = UserNotify.builder()
                 .senderId(message.getSenderId())
                 .receiverId(message.getReceiverId())
@@ -292,6 +340,7 @@ public class MessageService implements IMessageService {
             newMsg.setReceiverId(receiverId);
             newMsg.setSendDate(LocalDateTime.now());
             newMsg.setRoomId(roomId);
+            newMsg.setMessagesParent(null);
             messageRs = messageRepository.save(newMsg);
 
             // update rooms
@@ -299,11 +348,18 @@ public class MessageService implements IMessageService {
             for (Room room : rooms) {
 
                 if (!room.getSenderId().equals(senderId)) {
-                    if (message.getContent() instanceof FileObject) {
-                        room.setLatestMessage(message.getMessageType().toString());
-                    } else room.setLatestMessage(message.getContent().toString());
+                    if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
+                        User user = userRepository.findByEmail(senderId).orElseThrow();
+                        if (message.getContent() instanceof FileObject) {
+                            room.setLatestMessage(user.getName() + ": " + message.getMessageType().toString());
+                        } else room.setLatestMessage(user.getName() + ": " + message.getContent().toString());
+                    } else {
+                        if (message.getContent() instanceof FileObject) {
+                            room.setLatestMessage(message.getMessageType().toString());
+                        } else room.setLatestMessage(message.getContent().toString());
+                    }
                     room.setTime(LocalDateTime.now());
-                    room.setSender(true);
+                    room.setSender(false);
                     room.setNumberOfUnreadMessage(room.getNumberOfUnreadMessage() + 1);
                     roomService.saveRoom(room);
                 } else {
@@ -314,7 +370,18 @@ public class MessageService implements IMessageService {
                     room.setTime(LocalDateTime.now());
                     room.setSender(true);
                     room.setNumberOfUnreadMessage(0);
-                    roomService.saveRoom(room);
+                    Room roomSender = roomService.saveRoom(room);
+                    UserNotify success = UserNotify.builder()
+                            .senderId(message.getSenderId())
+                            .receiverId(message.getReceiverId())
+                            .status("SUCCESS")
+                            .message(messageRs)
+                            .room(roomSender)
+                            .build();
+                    simpMessagingTemplate.convertAndSendToUser(
+                            senderId, "queue/messages",
+                            success
+                    );
                 }
             }
             UserNotify success = UserNotify.builder()
@@ -329,20 +396,11 @@ public class MessageService implements IMessageService {
             );
 
         }
-        UserNotify success = UserNotify.builder()
-                .senderId(message.getSenderId())
-                .receiverId(message.getReceiverId())
-                .status("SUCCESS")
-                .message(messageRs)
-                .build();
-        simpMessagingTemplate.convertAndSendToUser(
-                senderId, "queue/messages",
-                success
-        );
+
     }
 
     @Override
-    public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp)  {
+    public void saveImageGroupMessage(ChatImageGroupRequest chatImageGroupRequest, Message messageTmp) {
 
     }
 
@@ -407,7 +465,7 @@ public class MessageService implements IMessageService {
         List<Room> rooms = roomRepository.findByRoomId(roomId);
         if (room.getRoomType().equals(RoomType.GROUP_CHAT)) {
             for (Room roomGroup : rooms) {
-                if(roomGroup.getSenderId().equals(callRequest.getSenderId())) {
+                if (roomGroup.getSenderId().equals(callRequest.getSenderId())) {
                     roomGroup.setLatestMessage("Đã bắt đầu cuộc gọi nhóm");
                     roomGroup.setSender(true);
                     roomGroup.setNumberOfUnreadMessage(0);
@@ -424,12 +482,12 @@ public class MessageService implements IMessageService {
         } else {
             for (Room roomUser : rooms) {
                 String latestMessage;
-                if(callRequest.getMessageType().equals(MessageType.AUDIO_CALL)) {
+                if (callRequest.getMessageType().equals(MessageType.AUDIO_CALL)) {
                     latestMessage = "Cuộc gọi thoại";
                 } else {
                     latestMessage = "Cuộc gọi video";
                 }
-                if(roomUser.getSenderId().equals(callRequest.getSenderId())) {
+                if (roomUser.getSenderId().equals(callRequest.getSenderId())) {
                     roomUser.setLatestMessage(latestMessage);
                     roomUser.setSender(true);
                     roomUser.setNumberOfUnreadMessage(0);
@@ -473,6 +531,22 @@ public class MessageService implements IMessageService {
     public void endCall(String messageId) {
         Message message = messageRepository.findById(messageId).orElseThrow();
         callHandler.endCall(message);
+    }
+
+    @Override
+    public void cancelCall(String messageId) {
+        Message message = messageRepository.findById(messageId).orElseThrow();
+        callHandler.cancelCall(message);
+    }
+
+    @Override
+    public void receiveMessage(Message message) {
+        messageRepository.save(message);
+        UserNotify messageReceive = UserNotify.builder()
+                .status("RECEIVED_MESSAGE")
+                .message(message)
+                .build();
+        simpMessagingTemplate.convertAndSendToUser(message.getSenderId(), "/queue/messages", messageReceive);
     }
 
 
@@ -526,11 +600,11 @@ public class MessageService implements IMessageService {
                     .build();
         }
         Message messageParent = null;
-        if(chatRequest.getMessageParent() != null) {
+        if (chatRequest.getMessageParent() != null) {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new JavaTimeModule());
             try {
-                messageParent =  objectMapper.readValue(chatRequest.getMessageParent(), Message.class);
+                messageParent = objectMapper.readValue(chatRequest.getMessageParent(), Message.class);
             } catch (JsonProcessingException e) {
                 log.error(e.getMessage());
             }

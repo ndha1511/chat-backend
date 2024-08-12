@@ -16,7 +16,6 @@ import java.util.Map;
 public interface IMessageService {
     @Transactional
     void saveMessage(ChatRequest chatRequest, Message messageTmp, Group group) throws MaxFileSizeException;
-
     MessageResponse getAllByRoomId(String senderId, String roomId, PageRequest pageRequest);
     void updateMessage(String id, ChatRequest chatRequest);
     Map<String, Object> saveMessage(ChatRequest chatRequest) throws DataNotFoundException, PermissionAccessDenied, BlockUserException, BlockMessageToStranger;
@@ -29,4 +28,6 @@ public interface IMessageService {
     void acceptCall(String messageId);
     void rejectCall(String messageId);
     void endCall(String messageId);
+    void cancelCall(String messageId);
+    void receiveMessage(Message message);
 }

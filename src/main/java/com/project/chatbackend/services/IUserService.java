@@ -20,8 +20,9 @@ public interface IUserService {
     boolean isValidOTP(OtpValidRequest otpValidRequest);
     boolean changePassword(ChangePasswordRequest changePasswordRequest);
     boolean resetPassword(ResetPasswordRequest resetPasswordRequest);
-    User updateUser(UserUpdateRequest updateUserRequest) throws Exception;
+    UserLoginResponse updateUser(UserUpdateRequest updateUserRequest) throws Exception;
     List<UserLoginResponse> getFriends(String userId);
     void blockUser(String senderId, String blockId);
     void unblockUser(String senderId, String unblockId);
+    List<UserLoginResponse> getBlocksUser(String userId);
 }

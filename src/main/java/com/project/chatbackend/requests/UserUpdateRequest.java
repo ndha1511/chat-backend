@@ -23,4 +23,5 @@ public class UserUpdateRequest {
     @NotBlank(message = "email is required")
     @Pattern(regexp = "[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$", message = "email is invalid")
     private String email;
+    private boolean notReceiveMessageToStranger;
 }

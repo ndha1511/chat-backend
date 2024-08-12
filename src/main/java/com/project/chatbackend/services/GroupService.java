@@ -8,6 +8,7 @@ import com.project.chatbackend.repositories.GroupRepository;
 import com.project.chatbackend.repositories.MessageRepository;
 import com.project.chatbackend.repositories.RoomRepository;
 import com.project.chatbackend.repositories.UserRepository;
+import com.project.chatbackend.requests.UpdateGroupRequest;
 import com.project.chatbackend.responses.UserNotify;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -571,6 +572,14 @@ public class GroupService implements IGroupService {
             users.add(optionalUser.get());
         }
         return users;
+    }
+
+    @Override
+    public Group updateGroup(String id, UpdateGroupRequest updateGroupRequest) {
+        Group group = groupRepository.findById(id).orElseThrow();
+        group.setGroupName(updateGroupRequest.getGroupName());
+        group.setAvatar(updateGroupRequest.getAvatar());
+        return groupRepository.save(group);
     }
 
     private Group getGroup(String adderId, Optional<Group> optionalGroup) throws PermissionAccessDenied {

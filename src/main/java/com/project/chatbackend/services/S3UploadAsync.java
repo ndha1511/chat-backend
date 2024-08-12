@@ -32,7 +32,7 @@ public class S3UploadAsync {
     private final MessageRepository messageRepository;
 
 
-    @Async
+    @Async("asyncExecutor")
     public void uploadToS3(Message message,
                            S3TransferManager transferManager,
                            UploadFileRequest uploadFileRequest,
@@ -122,7 +122,7 @@ public class S3UploadAsync {
         );
     }
 
-    @Async
+    @Async("asyncExecutor")
     public void saveMessageAsync(Message message, ChatRequest chatRequest, Group group) {
         LocalDateTime time = LocalDateTime.now();
         message.setMessageStatus(MessageStatus.SENT);

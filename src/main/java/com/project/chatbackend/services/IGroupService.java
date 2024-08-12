@@ -4,6 +4,7 @@ import com.project.chatbackend.exceptions.DataExistsException;
 import com.project.chatbackend.exceptions.DataNotFoundException;
 import com.project.chatbackend.exceptions.PermissionAccessDenied;
 import com.project.chatbackend.models.*;
+import com.project.chatbackend.requests.UpdateGroupRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ public interface IGroupService {
     void leaveGroup(String memberId, String groupId) throws DataNotFoundException, PermissionAccessDenied;
     List<Group> findAllBySenderId(String senderId);
     List<User> getMemberInGroup(String groupId) throws DataNotFoundException;
-
+    Group updateGroup(String id, UpdateGroupRequest updateGroupRequest);
 
 
 }

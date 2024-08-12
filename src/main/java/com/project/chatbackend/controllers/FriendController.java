@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/friends")
 @RequiredArgsConstructor
 public class FriendController {
-    @Autowired
+
     private final AddFriendService addFriendService;
 
     //send friend request
